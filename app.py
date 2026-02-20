@@ -32,6 +32,7 @@ def extract_invoice_data(image, mode):
     - partner_ico (string - the IČO/Registration number of the {partner_label})
     - partner_vat_id (string - the DIČ/VAT ID of the {partner_label})
     - base_0 (number - tax exempt amount)
+    - rounding (number - rounding amount)
     - base_12 (number - tax base for 12% VAT rate)
     - vat_12 (number - VAT amount for 12% VAT rate)
     - base_21 (number - tax base for 21% VAT rate)
@@ -92,8 +93,10 @@ def generate_flexibee_xml(invoices_list, mode):
         if not data.get("partner_ico") and not data.get("partner_vat_id"):
             ET.SubElement(invoice, "popis").text = f"Partner: {data.get('partner_name', 'Neznámý')}"
          
-        # Tax Exempt
-        ET.SubElement(invoice, "sumOsv").text = str(data.get("base_0", 0.0)) if data.get("base_0") else "0.0"
+        # Tax Exempt + Rounding
+        base_0 = float(data.get("base_0", 0.0)) if data.get("base_0") else 0.0
+        rounding = float(data.get("rounding", 0.0)) if data.get("rounding") else 0.0
+        ET.SubElement(invoice, "sumOsv").text = str(base_0 + rounding)
 
         # 12% VAT
         celkem = float(data.get("base_12", 0.0)) if data.get("base_12") else 0.0
@@ -303,7 +306,7 @@ if uploaded_files:
                 
                 c1, c2 = st.columns(2)
                 b0 = c1.number_input("Základ 0% (osvobozeno)", value=float(data.get("base_0", 0.0)) if data.get("base_0") else 0.0)
-                c2.empty()
+                round_val = c2.number_input("Zaokrouhlení", value=float(data.get("rounding", 0.0)) if data.get("rounding") else 0.0)
 
                 c1, c2 = st.columns(2)
                 b12 = c1.number_input("Základ 12%", value=float(data.get("base_12", 0.0)) if data.get("base_12") else 0.0)
@@ -330,6 +333,7 @@ if uploaded_files:
                     "partner_ico": p_ico,
                     "partner_vat_id": p_dic,
                     "base_0": b0,
+                    "rounding": round_val,
                     "base_12": b12,
                     "vat_12": v12,
                     "base_21": b21,
@@ -379,6 +383,7 @@ if st.session_state.processed_invoices:
         "issue_date": "Vystaveno", "due_date": "Splatnost",
         "partner_name": partner_ui_label, "partner_ico": "IČO", "partner_vat_id": "DIČ",
         "base_0": "Základ 0%",
+        "rounding": "Zaokrouhlení",
         "base_12": "Základ 12%", "vat_12": "DPH 12%",
         "base_21": "Základ 21%", "vat_21": "DPH 21%",
         "total_base": "Základ celkem", "total_vat": "DPH celkem",

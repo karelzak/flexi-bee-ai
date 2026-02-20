@@ -23,6 +23,7 @@ Tento projekt slouží k převodu obrázků faktur (přijatých i vydaných) do 
 - XML je formátované (pretty-print).
 - Vyřešena chyba s duplicitním číslováním dokladů při importu do FlexiBee.
 - Přidána podpora pro položky osvobozené od DPH (`sumOsv`).
+- Částka zaokrouhlení je automaticky přičítána k `sumOsv`.
 - Implementováno přikládání originálního souboru k faktuře v XML (base64 v tagu `<prilohy>`).
 
 ## Jak pokračovat
