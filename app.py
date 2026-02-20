@@ -3,6 +3,7 @@ from google import genai
 from PIL import Image
 import json
 import os
+import base64
 from datetime import datetime
 import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
@@ -118,6 +119,16 @@ def generate_flexibee_xml(invoices_list, mode):
         # Typ dokladu musí odpovídat kódu v FlexiBee (FAKTURA je nejvhodnější výchozí)
         ET.SubElement(invoice, "typDokl").text = "code:FAKTURA"
 
+        # Přiložení originálního obrazu faktury
+        if data.get("image_b64"):
+            attachments = ET.SubElement(invoice, "prilohy")
+            attachment = ET.SubElement(attachments, "priloha")
+            ET.SubElement(attachment, "nazSoub").text = str(data.get("image_filename", "faktura.jpg"))
+            ET.SubElement(attachment, "contentType").text = str(data.get("image_mimetype", "image/jpeg"))
+            content = ET.SubElement(attachment, "content")
+            content.set("encoding", "base64")
+            content.text = data.get("image_b64")
+
         # Povinne polozky
         ET.SubElement(invoice, "bezPolozek").text = "true"
         ET.SubElement(invoice, "szbDphSniz").text = "12.0"
@@ -200,6 +211,12 @@ if uploaded_files:
                 image_to_analyze = Image.open(f)
                 data = extract_invoice_data(image_to_analyze, mode_key)
                 if data:
+                    # Uložíme i metadata a data obrázku pro pozdější export
+                    f.seek(0)
+                    img_bytes = f.read()
+                    data["image_b64"] = base64.b64encode(img_bytes).decode('utf-8')
+                    data["image_filename"] = f.name
+                    data["image_mimetype"] = f.type
                     st.session_state.extraction_cache[f_id] = data
                 st.rerun()
     elif st.session_state.auto_analyzing:
@@ -250,6 +267,12 @@ if uploaded_files:
                 with st.spinner("Gemini analyzuje..."):
                     data = extract_invoice_data(image, mode_key)
                     if data:
+                        # Uložíme i metadata a data obrázku
+                        current_file.seek(0)
+                        img_bytes = current_file.read()
+                        data["image_b64"] = base64.b64encode(img_bytes).decode('utf-8')
+                        data["image_filename"] = current_file.name
+                        data["image_mimetype"] = current_file.type
                         st.session_state.extraction_cache[file_id] = data
                         st.rerun()
         
@@ -314,7 +337,10 @@ if uploaded_files:
                     "total_base": t_base,
                     "total_vat": t_vat,
                     "total_amount": t_amt,
-                    "currency": curr
+                    "currency": curr,
+                    "image_b64": data.get("image_b64"),
+                    "image_filename": data.get("image_filename"),
+                    "image_mimetype": data.get("image_mimetype")
                 }
                 
                 c_btn1, c_btn2 = st.columns(2)
