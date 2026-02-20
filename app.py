@@ -396,10 +396,17 @@ if st.session_state.processed_invoices:
             st.session_state.processed_invoices = []
             st.rerun()
     with col_exp2:
+        filename_prefix = st.text_input("Prefix souboru (např. název firmy)", value="flexibee")
         all_xml = generate_flexibee_xml(st.session_state.processed_invoices, mode_key)
+        
+        # Očištění prefixu pro bezpečné jméno souboru
+        safe_prefix = "".join([c for c in filename_prefix if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_')
+        if not safe_prefix:
+            safe_prefix = "flexibee"
+
         st.download_button(
             label=f"⬇️ Stáhnout XML ({invoice_mode.split(' ')[0]})",
             data=all_xml,
-            file_name=f"flexibee_{mode_key}_{datetime.now().strftime('%Y%m%d_%H%M')}.xml",
+            file_name=f"{safe_prefix}_{mode_key}_{datetime.now().strftime('%Y%m%d_%H%M')}.xml",
             mime="application/xml"
         )

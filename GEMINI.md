@@ -16,6 +16,7 @@ Tento projekt slouží k převodu obrázků faktur (přijatých i vydaných) do 
   - U **vydaných** faktur se číslo ukládá do `<kod>`.
 - **Typ dokladu:** Používá se `code:STANDARD` jako univerzální výchozí kód.
 - **Hromadné zpracování:** Uživatel může nahrát více souborů, procházet je, upravovat a exportovat jako jeden XML soubor.
+- **Export:** Možnost definovat prefix názvu souboru (např. jméno firmy) pro snadné odlišení exportů.
 - **Unikátnost:** V seznamu jsou faktury identifikovány dvojicí **IČO + Variabilní symbol**, při shodě dochází k aktualizaci záznamu místo duplikace.
 
 ## Aktuální stav
