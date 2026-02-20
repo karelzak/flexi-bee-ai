@@ -22,6 +22,7 @@ Tento projekt slouží k převodu obrázků faktur (přijatých i vydaných) do 
 - Aplikace je plně funkční v češtině.
 - XML je formátované (pretty-print).
 - Vyřešena chyba s duplicitním číslováním dokladů při importu do FlexiBee.
+- Přidána podpora pro položky osvobozené od DPH (`sumOsv`).
 
 ## Jak pokračovat
 Při dalším vývoji je možné se zaměřit na:
