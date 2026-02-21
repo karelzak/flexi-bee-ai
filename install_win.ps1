@@ -18,9 +18,10 @@ function Install-WithWinget {
     }
 }
 
-# Instalace Pythonu a Gitu
+# Instalace Pythonu, Gitu a NAPS2 (skener)
 Install-WithWinget "Python.Python.3.11" "Python 3.11"
 Install-WithWinget "Git.Git" "Git"
+Install-WithWinget "NAPS2.NAPS2" "NAPS2 (Scanner)"
 
 # 2. Nastavení Python virtuálního prostředí
 Write-Host "`nNastavení Python virtuálního prostředí..." -ForegroundColor Cyan

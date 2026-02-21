@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 import io
 import pandas as pd
 import fitz  # PyMuPDF
+import subprocess
+import platform
+from pathlib import Path
 
 # Načtení proměnných prostředí
 load_dotenv()
@@ -42,6 +45,71 @@ def pdf_to_images_cached(pdf_name, pdf_size, pdf_bytes):
         return pages
     except Exception as e:
         st.error(f"Chyba při zpracování PDF {pdf_name}: {e}")
+        return []
+
+def run_naps2_scan(company_name):
+    """Spustí NAPS2 scan z podavače a vrátí seznam načtených souborů."""
+    if platform.system() != "Windows":
+        st.error("Skenování je aktuálně podporováno pouze na Windows přes NAPS2.")
+        return []
+    
+    # Příprava adresáře: scans/<firma>-<timestamp>
+    safe_company = "".join([c for c in company_name if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    scan_dir = Path("scans") / f"{safe_company}-{timestamp}"
+    scan_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Výstupní soubor (NAPS2 umí automaticky číslovat pokud je v masce (n))
+    output_pattern = str(scan_dir / "scan_(n).jpg")
+    
+    # NAPS2 Console příkaz
+    # --noprofile: nepoužije výchozí profil
+    # --dpi: 150 (dostatečné pro OCR, rychlé)
+    # --bitdepth: Grayscale
+    # --source: adf (automatický podavač)
+    # --split: každá strana do vlastního souboru
+    # --quiet: žádné GUI
+    cmd = [
+        "NAPS2.Console.exe",
+        "-o", output_pattern,
+        "--dpi", "150",
+        "--bitdepth", "Grayscale",
+        "--source", "adf",
+        "--split",
+        "--quiet"
+    ]
+    
+    try:
+        with st.spinner("Skenuji z podavače..."):
+            # Spuštění procesu (NAPS2.Console.exe musí být v PATH nebo nainstalován standardně)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            
+            if result.returncode != 0:
+                st.error(f"Chyba skenování (NAPS2): {result.stderr or result.stdout}")
+                return []
+        
+        # Načtení všech vygenerovaných souborů
+        scanned_items = []
+        files = sorted(list(scan_dir.glob("scan_*.jpg")))
+        for f_path in files:
+            with open(f_path, "rb") as f:
+                content = f.read()
+                scanned_items.append({
+                    "name": f_path.name,
+                    "content": content,
+                    "type": "image/jpeg",
+                    "id": f"{f_path.name}_{len(content)}"
+                })
+        
+        if not scanned_items:
+            st.warning("Nebyly nalezeny žádné naskenované soubory.")
+            
+        return scanned_items
+    except FileNotFoundError:
+        st.error("NAPS2.Console.exe nebyl nalezen. Ujistěte se, že je NAPS2 nainstalován.")
+        return []
+    except Exception as e:
+        st.error(f"Neočekávaná chyba při skenování: {e}")
         return []
 
 def extract_invoice_data(image_source, mode):
@@ -252,6 +320,8 @@ if "approved_files" not in st.session_state:
     st.session_state.approved_files = set()
 if "auto_analyzing" not in st.session_state:
     st.session_state.auto_analyzing = False
+if "scanned_items" not in st.session_state:
+    st.session_state.scanned_items = []
 
 # Vymazat seznam při změně režimu
 if "last_mode" in st.session_state and st.session_state.last_mode != mode_key:
@@ -262,10 +332,31 @@ if "last_mode" in st.session_state and st.session_state.last_mode != mode_key:
     st.session_state.current_file_idx = 0
 st.session_state.last_mode = mode_key
 
-uploaded_files = st.file_uploader(f"Nahrajte {invoice_mode.lower()} (JPG, PNG, PDF)", type=["jpg", "jpeg", "png", "pdf"], accept_multiple_files=True)
+col_up1, col_up2 = st.columns([3, 1])
+with col_up1:
+    uploaded_files = st.file_uploader(f"Nahrajte {invoice_mode.lower()} (JPG, PNG, PDF)", type=["jpg", "jpeg", "png", "pdf"], accept_multiple_files=True)
 
-# Rozšíření seznamu souborů o stránky PDF
+with col_up2:
+    st.write(" ") # Zarovnání k uploaderu
+    st.write(" ")
+    if st.button("🖨️ Skenovat z podavače", use_container_width=True):
+        scanned = run_naps2_scan(company_name)
+        if scanned:
+            st.session_state.scanned_items.extend(scanned)
+            st.success(f"Naskenováno {len(scanned)} stran.")
+            st.rerun()
+            
+    if st.session_state.scanned_items:
+        if st.button("🗑️ Vymazat naskenované", use_container_width=True):
+            st.session_state.scanned_items = []
+            st.rerun()
+
+# Rozšíření seznamu souborů o stránky PDF a naskenované položky
 processable_items = []
+
+# Přidat naskenované položky (mají prioritu nahoře)
+processable_items.extend(st.session_state.scanned_items)
+
 if uploaded_files:
     for f in uploaded_files:
         if f.type == "application/pdf":
