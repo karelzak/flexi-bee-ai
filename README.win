@@ -1,0 +1,60 @@
+# Instalace Flexi-Bee AI na Windows
+
+Tento návod vás provede instalací aplikace na čistý systém Windows.
+
+## 1. Automatická instalace (Doporučeno)
+
+1. Stáhněte si soubor `install_win.ps1` z tohoto repozitáře.
+2. Klikněte na něj pravým tlačítkem a zvolte **"Run with PowerShell"** (Spustit pomocí PowerShellu).
+3. Skript se vás zeptá na povolení instalace nástrojů (Python, Git, ImageMagick).
+4. Po dokončení vznikne na ploše nebo v adresáři zástupce `Spustit-FlexiBee-AI.bat`.
+
+---
+
+## 2. Manuální instalace (Krok za krokem)
+
+Pokud nechcete použít skript, postupujte takto:
+
+### Krok A: Instalace systémových nástrojů
+Otevřete **PowerShell jako správce** a spusťte:
+```powershell
+winget install -e --id Python.Python.3.11
+winget install -e --id Git.Git
+winget install -e --id ImageMagick.ImageMagick
+winget install -e --id ArtifexSoftware.Ghostscript
+```
+*Poznámka: Po instalaci Pythonu a Gitu může být vyžadován restart PowerShellu nebo počítače.*
+
+### Krok B: Stažení aplikace
+```powershell
+git clone https://github.com/karelzak/flexi-bee-ai.git
+cd flexi-bee-ai
+```
+
+### Krok C: Nastavení Python prostředí
+V adresáři aplikace spusťte:
+```powershell
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### Krok D: Konfigurace API klíče
+1. V adresáři aplikace najděte soubor `.env.example`.
+2. Zkopírujte ho a pojmenujte jako `.env`.
+3. Otevřete `.env` v Poznámkovém bloku a vložte svůj `GOOGLE_API_KEY`.
+
+---
+
+## 3. Spuštění aplikace
+
+Aplikaci spustíte vždy příkazem (v aktivovaném venv):
+```powershell
+streamlit run app.py
+```
+Nebo použijte vytvořený soubor `run_app.bat`.
+
+## Možné problémy
+- **ImageMagick:** Pokud aplikace hlásí chybu s ImageMagick, ujistěte se, že je v systémové cestě PATH.
+- **Python:** Pokud příkaz `python` nefunguje, zkuste `py`.
+- **Zabezpečení:** PowerShell může blokovat spouštění skriptů. V takovém případě spusťte: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`.
