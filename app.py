@@ -81,22 +81,22 @@ def run_naps2_scan(company_name):
         st.info("Tip: Zkuste restartovat terminál/PowerShell po instalaci NAPS2.")
         return []
 
-    # Příprava adresáře: scans/<firma>-<timestamp>
+    # Příprava adresáře: scans/<firma>/<timestamp>
     safe_company = "".join([c for c in company_name if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_')
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    scan_dir = Path("scans") / f"{safe_company}-{timestamp}"
+    scan_dir = Path("scans") / safe_company / timestamp
     scan_dir.mkdir(parents=True, exist_ok=True)
     
-    # Výstupní soubor (NAPS2 umí automaticky číslovat pokud je v masce (n))
-    output_pattern = str(scan_dir / "scan_(n).jpg")
+    # Výstupní soubor (NAPS2 využívá $(n) pro číslování)
+    output_pattern = str(scan_dir / "img-$(n).jpg")
     
     # NAPS2 Console příkaz využívající profil "flexibee"
-    # Profil si uživatel vytvoří v NAPS2 GUI (nastaví si tam scanner, ADF, atd.)
     cmd = [
         naps2_path,
         "-p", "flexibee",
         "-o", output_pattern,
-        "--split"
+        "--split",
+        "--progress"
     ]
     
     try:
@@ -110,7 +110,7 @@ def run_naps2_scan(company_name):
         
         # Načtení všech vygenerovaných souborů
         scanned_items = []
-        files = sorted(list(scan_dir.glob("scan_*.jpg")))
+        files = sorted(list(scan_dir.glob("img-*.jpg")))
         for f_path in files:
             with open(f_path, "rb") as f:
                 content = f.read()
