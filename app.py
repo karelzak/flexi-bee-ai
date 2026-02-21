@@ -465,38 +465,53 @@ if processable_items:
 if st.session_state.processed_invoices:
     st.divider()
     st.subheader(f"📋 Seznam schválených faktur ({invoice_mode.split(' ')[0]})")
-    st.info("💡 Kliknutím na řádek v tabulce otevřete fakturu k úpravě v review panelu nahoře.")
+    st.info("💡 Zaškrtnutím políčka 'Vybrat' otevřete fakturu k úpravě. Aktuálně zobrazená faktura je vždy zaškrtnuta.")
     
     df = pd.DataFrame(st.session_state.processed_invoices)
-    # Skrýt interní ID v tabulce
-    cols_to_show = [c for c in df.columns if c not in ["image_b64", "image_filename", "image_mimetype", "item_id"]]
     
-    event = st.dataframe(df[cols_to_show], use_container_width=True, hide_index=True, 
-                         on_select="rerun", selection_mode="single-row",
-                         column_config={
-        "invoice_number": "Číslo faktury", "variable_symbol": "Var. symbol",
-        "description": "Popis",
-        "issue_date": "Vystaveno", "vat_date": "DUZP", "due_date": "Splatnost",
-        "partner_name": partner_ui_label, "partner_ico": "IČO", "partner_vat_id": "DIČ",
-        "base_0": "Základ 0%",
-        "rounding": "Zaokrouhlení",
-        "base_12": "Základ 12%", "vat_12": "DPH 12%",
-        "base_21": "Základ 21%", "vat_21": "DPH 21%",
-        "total_base": "Základ celkem", "total_vat": "DPH celkem",
-        "total_amount": "Celkem", "currency": "Měna"
-    })
+    # Přidat booleovský příznak pro aktuálně vybraný řádek (zobrazí se jako checkbox)
+    current_id = processable_items[st.session_state.current_file_idx]['id'] + mode_key
+    df['Vybrat'] = df['item_id'] == current_id
     
-    # Zpracování výběru řádku
-    if event.selection.rows:
-        selected_idx = event.selection.rows[0]
-        selected_item_id = st.session_state.processed_invoices[selected_idx].get("item_id")
-        
-        # Najít index v processable_items
-        for idx, item in enumerate(processable_items):
-            if (item['id'] + mode_key) == selected_item_id:
-                if st.session_state.current_file_idx != idx:
-                    st.session_state.current_file_idx = idx
-                    st.rerun()
+    # Skrýt interní ID a technické sloupce v tabulce, definovat pořadí
+    cols_to_show = ["Vybrat"] + [c for c in df.columns if c not in ["image_b64", "image_filename", "image_mimetype", "item_id", "Vybrat"]]
+    
+    # Použijeme data_editor pro interaktivní checkbox bez duplicitních systémových checkboxů
+    edited_df = st.data_editor(
+        df[cols_to_show], 
+        use_container_width=True, 
+        hide_index=True, 
+        key="invoice_selector",
+        column_config={
+            "Vybrat": st.column_config.CheckboxColumn(" ", width="small"),
+            "invoice_number": "Číslo faktury", "variable_symbol": "Var. symbol",
+            "description": "Popis",
+            "issue_date": "Vystaveno", "vat_date": "DUZP", "due_date": "Splatnost",
+            "partner_name": partner_ui_label, "partner_ico": "IČO", "partner_vat_id": "DIČ",
+            "base_0": "Základ 0%",
+            "rounding": "Zaokrouhlení",
+            "base_12": "Základ 12%", "vat_12": "DPH 12%",
+            "base_21": "Základ 21%", "vat_21": "DPH 21%",
+            "total_base": "Základ celkem", "total_vat": "DPH celkem",
+            "total_amount": "Celkem", "currency": "Měna"
+        },
+        disabled=[c for c in cols_to_show if c != "Vybrat"]
+    )
+    
+    # Zpracování kliknutí na checkbox v data_editoru
+    if "invoice_selector" in st.session_state:
+        edits = st.session_state.invoice_selector.get("edited_rows", {})
+        if edits:
+            # Zjistíme, který řádek byl změněn
+            row_idx = int(next(iter(edits.keys())))
+            selected_item_id = df.iloc[row_idx]["item_id"]
+            
+            # Najít index v processable_items
+            for idx, item in enumerate(processable_items):
+                if (item['id'] + mode_key) == selected_item_id:
+                    if st.session_state.current_file_idx != idx:
+                        st.session_state.current_file_idx = idx
+                        st.rerun()
     
     col_exp1, col_exp2 = st.columns(2)
     with col_exp1:
