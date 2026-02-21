@@ -221,6 +221,8 @@ st.markdown("""
 
 # Sidebar pro nastavení
 st.sidebar.title("Nastavení")
+company_name = st.sidebar.text_input("Název firmy (pro export a složky)", value="moje_firma")
+
 invoice_mode = st.sidebar.radio(
     "Typ zpracovávaných faktur:",
     ("Přijaté (od dodavatelů)", "Vydané (odběratelům)"),
@@ -562,11 +564,10 @@ if st.session_state.processed_invoices:
             st.session_state.processed_invoices = []
             st.rerun()
     with col_exp2:
-        filename_prefix = st.text_input("Prefix souboru (např. název firmy)", value="flexibee")
         all_xml = generate_flexibee_xml(st.session_state.processed_invoices, mode_key, include_attachments=include_images)
         
         # Očištění prefixu pro bezpečné jméno souboru
-        safe_prefix = "".join([c for c in filename_prefix if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_')
+        safe_prefix = "".join([c for c in company_name if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_')
         if not safe_prefix:
             safe_prefix = "flexibee"
 
