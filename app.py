@@ -76,7 +76,7 @@ def extract_invoice_data(image_source, mode):
     - total_base (number - sum of all tax bases)
     - total_vat (number - sum of all VAT amounts)
     - total_amount (number - total including VAT)
-    - currency (string, ISO code e.g., CZK, EUR)
+    - currency (string, ISO code e.g., CZK, EUR. Never use "Kč", always use "CZK" for Czech Koruna)
 
     If a value is not found, return 0 for numeric fields and null for strings.
     """
@@ -87,7 +87,13 @@ def extract_invoice_data(image_source, mode):
             contents=[prompt, image],
             config={'response_mime_type': 'application/json'}
         )
-        return json.loads(response.text)
+        data = json.loads(response.text)
+        
+        # Normalizace měny (Gemini občas vrací Kč místo CZK)
+        if data.get("currency") and data["currency"].strip().upper() in ["KČ", "KC"]:
+            data["currency"] = "CZK"
+            
+        return data
     except Exception as e:
         st.error(f"Chyba při komunikaci s Gemini: {e}")
         return None
@@ -158,7 +164,11 @@ def generate_flexibee_xml(invoices_list, mode, include_attachments=True):
         ET.SubElement(invoice, "sumDphCelkem").text = str(data.get("total_vat", "0"))
         ET.SubElement(invoice, "sumCelkem").text = str(data.get("total_amount", "0"))
         
-        ET.SubElement(invoice, "mena").text = f"code:{data.get('currency', 'CZK')}"
+        # Normalizace měny pro FlexiBee
+        curr_val = data.get('currency', 'CZK')
+        if curr_val and curr_val.strip().upper() in ["KČ", "KC"]:
+            curr_val = "CZK"
+        ET.SubElement(invoice, "mena").text = f"code:{curr_val}"
         
         # Typ dokladu musí odpovídat kódu v FlexiBee (FAKTURA je nejvhodnější výchozí)
         ET.SubElement(invoice, "typDokl").text = "code:FAKTURA"
