@@ -279,9 +279,11 @@ if processable_items:
                     data["image_b64"] = base64.b64encode(item['content']).decode('utf-8')
                     data["image_filename"] = item['name']
                     data["image_mimetype"] = item['type']
-                    # Fallback pro DUZP pokud chybí
+                    # Fallback pro DUZP a Splatnost pokud chybí
                     if not data.get("vat_date"):
                         data["vat_date"] = data.get("issue_date")
+                    if not data.get("due_date"):
+                        data["due_date"] = data.get("issue_date")
                     st.session_state.extraction_cache[item_id] = data
                 st.rerun()
     elif st.session_state.auto_analyzing:
