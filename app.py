@@ -319,6 +319,70 @@ def generate_flexibee_xml(invoices_list, mode, include_attachments=True):
     # Navrácení jako bytes pro download_button
     return pretty_xml_str.encode('utf-8')
 
+def check_for_anomalies(invoices_list, mode):
+    """Použije Gemini k detekci anomálií v seznamu faktur."""
+    if not invoices_list:
+        return []
+    
+    # Příprava dat (vynecháme citlivé nebo irelevantní popisy/firmy podle požadavku)
+    simplified_data = []
+    for inv in invoices_list:
+        simplified_data.append({
+            "item_id": inv.get("item_id"),
+            "invoice_number": inv.get("invoice_number"),
+            "variable_symbol": inv.get("variable_symbol"),
+            "issue_date": inv.get("issue_date"),
+            "vat_date": inv.get("vat_date"),
+            "due_date": inv.get("due_date"),
+            "partner_ico": inv.get("partner_ico"),
+            "total_amount": inv.get("total_amount"),
+            "currency": inv.get("currency")
+        })
+
+    if mode == "vydana":
+        # U vydaných faktur očekáváme souvislou číselnou řadu
+        mode_instruction = """
+        Toto jsou VYDANÉ faktury (všechny vystavila jedna firma). 
+        Zaměř se na:
+        1. Číselné řady (invoice_number, variable_symbol) - hledej mezery v sekvenci, duplicity nebo podezřelé skoky.
+        2. Logiku dat (splatnost před vystavením, data v budoucnosti, DUZP vs vystavení).
+        """
+    else:
+        # U přijatých faktur jsou čísla od různých dodavatelů, řady nedávají smysl plošně
+        mode_instruction = """
+        Toto jsou PŘIJATÉ faktury od různých dodavatelů (partner_ico). 
+        Zaměř se na:
+        1. Duplicity - stejné partner_ico + stejné číslo faktury/variabilní symbol.
+        2. Logiku dat (splatnost před vystavením, data v budoucnosti, extrémně dlouhá splatnost).
+        3. Nekonzistence v partner_ico (např. chybějící nebo podezřele krátké).
+        U přijatých faktur NEHLEDEJ číselné řady napříč celým seznamem, protože každý dodavatel má vlastní číslování.
+        """
+
+    prompt = f"""
+    Analyze the following list of invoices for anomalies and errors.
+    The current date is {datetime.now().strftime('%Y-%m-%d')}.
+    
+    {mode_instruction}
+    
+    Return a JSON list of objects, each containing:
+    - item_id: the ID of the suspicious invoice
+    - reason: short explanation in Czech (max 60 chars) why it is suspicious.
+
+    If no anomalies are found, return an empty list [].
+    Return ONLY valid JSON.
+    """
+    
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[prompt, json.dumps(simplified_data, indent=2)],
+            config={'response_mime_type': 'application/json'}
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        st.error(f"Chyba při kontrole anomálií: {e}")
+        return []
+
 # Streamlit UI
 st.set_page_config(page_title="Převod faktur do FlexiBee", layout="wide")
 
@@ -388,6 +452,8 @@ if "auto_analyzing" not in st.session_state:
     st.session_state.auto_analyzing = False
 if "scanned_items" not in st.session_state:
     st.session_state.scanned_items = []
+if "anomalies" not in st.session_state:
+    st.session_state.anomalies = {}
 
 # Vymazat seznam při změně režimu
 if "last_mode" in st.session_state and st.session_state.last_mode != mode_key:
@@ -396,6 +462,7 @@ if "last_mode" in st.session_state and st.session_state.last_mode != mode_key:
     st.session_state.approved_files = set()
     st.session_state.auto_analyzing = False
     st.session_state.current_file_idx = 0
+    st.session_state.anomalies = {}
 st.session_state.last_mode = mode_key
 
 col_up1, col_up2 = st.columns([3, 1])
@@ -676,8 +743,11 @@ if st.session_state.processed_invoices:
     current_id = processable_items[st.session_state.current_file_idx]['id'] + mode_key
     df['Vybrat'] = df['item_id'] == current_id
     
+    # Přidat sloupec s anomáliemi
+    df['Anomálie'] = df['item_id'].apply(lambda x: st.session_state.anomalies.get(x, ""))
+    
     # Skrýt interní ID, technické sloupce a sloupce s nulami
-    cols_to_show = ["Vybrat"] + [c for c in df.columns if c not in ["image_b64", "image_filename", "image_mimetype", "item_id", "Vybrat"] + zero_cols]
+    cols_to_show = ["Vybrat", "Anomálie"] + [c for c in df.columns if c not in ["image_b64", "image_filename", "image_mimetype", "item_id", "Vybrat", "Anomálie"] + zero_cols]
     
     # Použijeme data_editor pro interaktivní checkbox bez duplicitních systémových checkboxů
     edited_df = st.data_editor(
@@ -687,6 +757,7 @@ if st.session_state.processed_invoices:
         key="invoice_selector",
         column_config={
             "Vybrat": st.column_config.CheckboxColumn(" ", width="small"),
+            "Anomálie": st.column_config.TextColumn("⚠️ Anomálie", width="medium", help="Detekované nesrovnalosti pomocí AI"),
             "invoice_number": "Číslo faktury", "variable_symbol": "Var. symbol",
             "description": "Popis",
             "issue_date": "Vystaveno", "vat_date": "DUZP", "due_date": "Splatnost",
@@ -716,12 +787,26 @@ if st.session_state.processed_invoices:
                         st.session_state.current_file_idx = idx
                         st.rerun()
     
-    col_exp1, col_exp2 = st.columns(2)
+    col_exp1, col_exp2, col_exp3 = st.columns([1, 1, 1])
     with col_exp1:
         if st.button("🗑️ Vymazat seznam"):
             st.session_state.processed_invoices = []
+            st.session_state.anomalies = {}
             st.rerun()
     with col_exp2:
+        if st.button("🔍 AI Kontrola anomálií", use_container_width=True):
+            with st.spinner("Gemini hledá anomálie v číselných řadách a datech..."):
+                anomaly_results = check_for_anomalies(st.session_state.processed_invoices, mode_key)
+                # Vyčistit staré anomálie pro aktuální seznam
+                st.session_state.anomalies = {}
+                for res in anomaly_results:
+                    st.session_state.anomalies[res.get("item_id")] = res.get("reason")
+                if not anomaly_results:
+                    st.success("Žádné anomálie nebyly nalezeny.")
+                else:
+                    st.warning(f"Nalezeno {len(anomaly_results)} potenciálních anomálií.")
+                st.rerun()
+    with col_exp3:
         all_xml = generate_flexibee_xml(st.session_state.processed_invoices, mode_key, include_attachments=include_images)
         save_company_to_history(company_name)
         
