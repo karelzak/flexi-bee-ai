@@ -469,12 +469,22 @@ if st.session_state.processed_invoices:
     
     df = pd.DataFrame(st.session_state.processed_invoices)
     
+    # Identifikovat sloupce, které obsahují pouze nuly (pro číselné typy)
+    zero_cols = []
+    numeric_check = ["base_0", "rounding", "base_12", "vat_12", "base_21", "vat_21", "total_base", "total_vat"]
+    for col in numeric_check:
+        if col in df.columns:
+            # Převedeme na čísla a zkontrolujeme, zda jsou všechny hodnoty 0
+            vals = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            if (vals == 0).all():
+                zero_cols.append(col)
+    
     # Přidat booleovský příznak pro aktuálně vybraný řádek (zobrazí se jako checkbox)
     current_id = processable_items[st.session_state.current_file_idx]['id'] + mode_key
     df['Vybrat'] = df['item_id'] == current_id
     
-    # Skrýt interní ID a technické sloupce v tabulce, definovat pořadí
-    cols_to_show = ["Vybrat"] + [c for c in df.columns if c not in ["image_b64", "image_filename", "image_mimetype", "item_id", "Vybrat"]]
+    # Skrýt interní ID, technické sloupce a sloupce s nulami
+    cols_to_show = ["Vybrat"] + [c for c in df.columns if c not in ["image_b64", "image_filename", "image_mimetype", "item_id", "Vybrat"] + zero_cols]
     
     # Použijeme data_editor pro interaktivní checkbox bez duplicitních systémových checkboxů
     edited_df = st.data_editor(
