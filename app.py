@@ -385,6 +385,7 @@ if processable_items:
                 curr = c2.text_input("Měna", data.get("currency"))
 
                 edited_data = {
+                    "item_id": item_id,
                     "invoice_number": inv_num,
                     "variable_symbol": var_sym,
                     "description": desc,
@@ -420,7 +421,7 @@ if processable_items:
                     
                     existing_idx = -1
                     for idx, inv in enumerate(st.session_state.processed_invoices):
-                        if inv.get("partner_ico") == new_ico and inv.get("variable_symbol") == new_vs:
+                        if inv.get("item_id") == item_id: # Identifikace podle ID položky
                             existing_idx = idx
                             break
                     
@@ -443,14 +444,12 @@ if processable_items:
                 if st.button(f"✅ Schválit všechny analyzované položky ({len(analyzed_not_approved)})", use_container_width=True):
                     for item in analyzed_not_approved:
                         item_id = item['id'] + mode_key
-                        data = st.session_state.extraction_cache[item_id]
-                        
-                        new_ico = data.get("partner_ico")
-                        new_vs = data.get("variable_symbol")
+                        data = st.session_state.extraction_cache[item_id].copy()
+                        data["item_id"] = item_id # Přidat ID do dat
                         
                         existing_idx = -1
                         for idx, inv in enumerate(st.session_state.processed_invoices):
-                            if inv.get("partner_ico") == new_ico and inv.get("variable_symbol") == new_vs:
+                            if inv.get("item_id") == item_id:
                                 existing_idx = idx
                                 break
                         
@@ -466,8 +465,15 @@ if processable_items:
 if st.session_state.processed_invoices:
     st.divider()
     st.subheader(f"📋 Seznam schválených faktur ({invoice_mode.split(' ')[0]})")
+    st.info("💡 Kliknutím na řádek v tabulce otevřete fakturu k úpravě v review panelu nahoře.")
+    
     df = pd.DataFrame(st.session_state.processed_invoices)
-    st.dataframe(df, use_container_width=True, column_config={
+    # Skrýt interní ID v tabulce
+    cols_to_show = [c for c in df.columns if c not in ["image_b64", "image_filename", "image_mimetype", "item_id"]]
+    
+    event = st.dataframe(df[cols_to_show], use_container_width=True, hide_index=True, 
+                         on_select="rerun", selection_mode="single-row",
+                         column_config={
         "invoice_number": "Číslo faktury", "variable_symbol": "Var. symbol",
         "description": "Popis",
         "issue_date": "Vystaveno", "vat_date": "DUZP", "due_date": "Splatnost",
@@ -479,6 +485,18 @@ if st.session_state.processed_invoices:
         "total_base": "Základ celkem", "total_vat": "DPH celkem",
         "total_amount": "Celkem", "currency": "Měna"
     })
+    
+    # Zpracování výběru řádku
+    if event.selection.rows:
+        selected_idx = event.selection.rows[0]
+        selected_item_id = st.session_state.processed_invoices[selected_idx].get("item_id")
+        
+        # Najít index v processable_items
+        for idx, item in enumerate(processable_items):
+            if (item['id'] + mode_key) == selected_item_id:
+                if st.session_state.current_file_idx != idx:
+                    st.session_state.current_file_idx = idx
+                    st.rerun()
     
     col_exp1, col_exp2 = st.columns(2)
     with col_exp1:
