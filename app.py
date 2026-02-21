@@ -96,8 +96,7 @@ def run_naps2_scan(company_name):
         naps2_path,
         "-p", "flexibee",
         "-o", output_pattern,
-        "--split",
-        "--quiet"
+        "--split"
     ]
     
     try:
