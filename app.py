@@ -279,6 +279,9 @@ if processable_items:
                     data["image_b64"] = base64.b64encode(item['content']).decode('utf-8')
                     data["image_filename"] = item['name']
                     data["image_mimetype"] = item['type']
+                    # Fallback pro DUZP pokud chybí
+                    if not data.get("vat_date"):
+                        data["vat_date"] = data.get("issue_date")
                     st.session_state.extraction_cache[item_id] = data
                 st.rerun()
     elif st.session_state.auto_analyzing:
@@ -431,6 +434,33 @@ if processable_items:
                     if submit_next and st.session_state.current_file_idx < len(processable_items) - 1:
                         st.session_state.current_file_idx += 1
                     
+                    st.rerun()
+            
+            # Hromadné schválení pod formulářem
+            analyzed_not_approved = [item for item in processable_items if (item['id'] + mode_key) in st.session_state.extraction_cache and (item['id'] + mode_key) not in st.session_state.approved_files]
+            if analyzed_not_approved:
+                st.divider()
+                if st.button(f"✅ Schválit všechny analyzované položky ({len(analyzed_not_approved)})", use_container_width=True):
+                    for item in analyzed_not_approved:
+                        item_id = item['id'] + mode_key
+                        data = st.session_state.extraction_cache[item_id]
+                        
+                        new_ico = data.get("partner_ico")
+                        new_vs = data.get("variable_symbol")
+                        
+                        existing_idx = -1
+                        for idx, inv in enumerate(st.session_state.processed_invoices):
+                            if inv.get("partner_ico") == new_ico and inv.get("variable_symbol") == new_vs:
+                                existing_idx = idx
+                                break
+                        
+                        if existing_idx != -1:
+                            st.session_state.processed_invoices[existing_idx] = data
+                        else:
+                            st.session_state.processed_invoices.append(data)
+                        
+                        st.session_state.approved_files.add(item_id)
+                    st.success(f"Schváleno {len(analyzed_not_approved)} položek.")
                     st.rerun()
 
 if st.session_state.processed_invoices:
