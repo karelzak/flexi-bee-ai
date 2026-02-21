@@ -90,7 +90,7 @@ def extract_invoice_data(image_source, mode):
         st.error(f"Chyba při komunikaci s Gemini: {e}")
         return None
 
-def generate_flexibee_xml(invoices_list, mode):
+def generate_flexibee_xml(invoices_list, mode, include_attachments=True):
     """Převede seznam ověřených faktur do formátu Abra FlexiBee XML s hezkým formátováním."""
     from xml.dom import minidom
     
@@ -156,8 +156,8 @@ def generate_flexibee_xml(invoices_list, mode):
         # Typ dokladu musí odpovídat kódu v FlexiBee (FAKTURA je nejvhodnější výchozí)
         ET.SubElement(invoice, "typDokl").text = "code:FAKTURA"
 
-        # Přiložení originálního obrazu faktury
-        if data.get("image_b64"):
+        # Přiložení originálního obrazu faktury (volitelně)
+        if include_attachments and data.get("image_b64"):
             attachments = ET.SubElement(invoice, "prilohy")
             attachment = ET.SubElement(attachments, "priloha")
             ET.SubElement(attachment, "nazSoub").text = str(data.get("image_filename", "faktura.jpg"))
@@ -190,6 +190,10 @@ invoice_mode = st.sidebar.radio(
 )
 mode_key = "prijata" if "Přijaté" in invoice_mode else "vydana"
 partner_ui_label = "Dodavatel" if mode_key == "prijata" else "Odběratel/Zákazník"
+
+# Možnosti exportu
+st.sidebar.subheader("Export")
+include_images = st.sidebar.checkbox("Přikládat obrazy faktur do XML", value=True, help="Pokud je vypnuto, XML bude mnohem menší, ale bez náhledů faktur.")
 
 st.title(f"📄 Převodník: Faktury {invoice_mode.split(' ')[0].lower()}")
 
@@ -439,7 +443,7 @@ if st.session_state.processed_invoices:
             st.rerun()
     with col_exp2:
         filename_prefix = st.text_input("Prefix souboru (např. název firmy)", value="flexibee")
-        all_xml = generate_flexibee_xml(st.session_state.processed_invoices, mode_key)
+        all_xml = generate_flexibee_xml(st.session_state.processed_invoices, mode_key, include_attachments=include_images)
         
         # Očištění prefixu pro bezpečné jméno souboru
         safe_prefix = "".join([c for c in filename_prefix if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_')
