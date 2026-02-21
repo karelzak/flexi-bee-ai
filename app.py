@@ -18,6 +18,33 @@ from pathlib import Path
 # Načtení proměnných prostředí
 load_dotenv()
 
+def load_company_history():
+    """Načte historii firem z lokálního souboru."""
+    history_file = Path("companies.json")
+    if history_file.exists():
+        try:
+            with open(history_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_company_to_history(name):
+    """Uloží firmu do historie (na začátek, bez duplicit)."""
+    if not name or name == "moje_firma":
+        return
+    history = load_company_history()
+    if name in history:
+        history.remove(name)
+    history.insert(0, name)
+    # Ponecháme jen posledních 20
+    history = history[:20]
+    try:
+        with open("companies.json", "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except:
+        pass
+
 # Konfigurace Gemini API
 API_KEY = os.getenv("GOOGLE_API_KEY")
 if API_KEY:
@@ -318,7 +345,17 @@ st.markdown("""
 
 # Sidebar pro nastavení
 st.sidebar.title("Nastavení")
-company_name = st.sidebar.text_input("Název firmy (pro export a složky)", value="moje_firma")
+
+# Historie firem
+history = load_company_history()
+default_company = history[0] if history else "moje_firma"
+
+if history:
+    selected_history = st.sidebar.selectbox("Historie firem:", options=["-- vybrat z historie --"] + history)
+    if selected_history != "-- vybrat z historie --":
+        default_company = selected_history
+
+company_name = st.sidebar.text_input("Název firmy (pro export a složky):", value=default_company)
 
 invoice_mode = st.sidebar.radio(
     "Typ zpracovávaných faktur:",
@@ -369,6 +406,7 @@ with col_up2:
     st.write(" ") # Zarovnání k uploaderu
     st.write(" ")
     if st.button("🖨️ Skenovat z podavače", use_container_width=True):
+        save_company_to_history(company_name)
         scanned = run_naps2_scan(company_name)
         if scanned:
             st.session_state.scanned_items.extend(scanned)
@@ -685,6 +723,7 @@ if st.session_state.processed_invoices:
             st.rerun()
     with col_exp2:
         all_xml = generate_flexibee_xml(st.session_state.processed_invoices, mode_key, include_attachments=include_images)
+        save_company_to_history(company_name)
         
         # Očištění prefixu pro bezpečné jméno souboru
         safe_prefix = "".join([c for c in company_name if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_')
