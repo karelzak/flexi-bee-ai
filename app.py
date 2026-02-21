@@ -12,6 +12,7 @@ import pandas as pd
 import fitz  # PyMuPDF
 import subprocess
 import platform
+import shutil
 from pathlib import Path
 
 # Načtení proměnných prostředí
@@ -47,12 +48,39 @@ def pdf_to_images_cached(pdf_name, pdf_size, pdf_bytes):
         st.error(f"Chyba při zpracování PDF {pdf_name}: {e}")
         return []
 
+def find_naps2():
+    """Pokusí se najít NAPS2.Console.exe v PATH nebo v běžných instalačních cestách."""
+    # 1. Zkusíme PATH
+    path_found = shutil.which("NAPS2.Console.exe")
+    if path_found:
+        return path_found
+        
+    # 2. Běžné instalační cesty na Windows
+    common_paths = [
+        r"C:\Program Files\NAPS2\NAPS2.Console.exe",
+        r"C:\Program Files (x86)\NAPS2\NAPS2.Console.exe",
+        # Pokud je NAPS2 nainstalován jen pro uživatele (Portable nebo User install)
+        str(Path.home() / "AppData" / "Local" / "NAPS2" / "NAPS2.Console.exe")
+    ]
+    
+    for p in common_paths:
+        if os.path.exists(p):
+            return p
+            
+    return None
+
 def run_naps2_scan(company_name):
     """Spustí NAPS2 scan z podavače a vrátí seznam načtených souborů."""
     if platform.system() != "Windows":
         st.error("Skenování je aktuálně podporováno pouze na Windows přes NAPS2.")
         return []
     
+    naps2_path = find_naps2()
+    if not naps2_path:
+        st.error("NAPS2.Console.exe nebyl nalezen. Ujistěte se, že je NAPS2 nainstalován.")
+        st.info("Tip: Zkuste restartovat terminál/PowerShell po instalaci NAPS2.")
+        return []
+
     # Příprava adresáře: scans/<firma>-<timestamp>
     safe_company = "".join([c for c in company_name if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_')
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -63,14 +91,8 @@ def run_naps2_scan(company_name):
     output_pattern = str(scan_dir / "scan_(n).jpg")
     
     # NAPS2 Console příkaz
-    # --noprofile: nepoužije výchozí profil
-    # --dpi: 150 (dostatečné pro OCR, rychlé)
-    # --bitdepth: Grayscale
-    # --source: adf (automatický podavač)
-    # --split: každá strana do vlastního souboru
-    # --quiet: žádné GUI
     cmd = [
-        "NAPS2.Console.exe",
+        naps2_path,
         "-o", output_pattern,
         "--dpi", "150",
         "--bitdepth", "Grayscale",
@@ -81,7 +103,7 @@ def run_naps2_scan(company_name):
     
     try:
         with st.spinner("Skenuji z podavače..."):
-            # Spuštění procesu (NAPS2.Console.exe musí být v PATH nebo nainstalován standardně)
+            # Spuštění procesu
             result = subprocess.run(cmd, capture_output=True, text=True, check=False)
             
             if result.returncode != 0:
