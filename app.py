@@ -198,6 +198,27 @@ def generate_flexibee_xml(invoices_list, mode, include_attachments=True):
 # Streamlit UI
 st.set_page_config(page_title="Převod faktur do FlexiBee", layout="wide")
 
+# Kompaktní UI styl (redukce mezer)
+st.markdown("""
+    <style>
+    .stMainBlockContainer { padding-top: 2rem !important; }
+    .stForm { padding: 0.5rem !important; margin-bottom: 0.5rem !important; }
+    div[data-testid="stForm"] > div { gap: 0.5rem !important; }
+    div[data-testid="stVerticalBlock"] > div { gap: 0.3rem !important; }
+    div[data-testid="stHorizontalBlock"] { gap: 0.5rem !important; }
+    .stTextInput > div > div > input, .stNumberInput > div > div > input {
+        padding-top: 0.2rem !important;
+        padding-bottom: 0.2rem !important;
+        min-height: 1.8rem !important;
+    }
+    .stTextInput label, .stNumberInput label {
+        margin-bottom: 0px !important;
+        font-size: 0.8rem !important;
+    }
+    hr { margin: 0.5rem 0 !important; }
+    </style>
+""", unsafe_allow_html=True)
+
 # Sidebar pro nastavení
 st.sidebar.title("Nastavení")
 invoice_mode = st.sidebar.radio(
@@ -372,7 +393,7 @@ if processable_items:
                 
                 c1, c2 = st.columns(2)
                 p_dic = c1.text_input(f"DIČ {partner_ui_label.lower()}", data.get("partner_vat_id"))
-                c2.empty()
+                curr = c2.text_input("Měna", data.get("currency"))
                 
                 st.divider()
                 
@@ -394,7 +415,7 @@ if processable_items:
                 
                 c1, c2 = st.columns(2)
                 t_amt = c1.number_input("Celkem s DPH", value=float(data.get("total_amount", 0.0)) if data.get("total_amount") else 0.0)
-                curr = c2.text_input("Měna", data.get("currency"))
+                c2.empty()
 
                 edited_data = {
                     "item_id": item_id,
