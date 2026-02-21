@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
 import io
 import pandas as pd
+import fitz  # PyMuPDF
 
 # Načtení proměnných prostředí
 load_dotenv()
@@ -18,9 +19,42 @@ API_KEY = os.getenv("GOOGLE_API_KEY")
 if API_KEY:
     client = genai.Client(api_key=API_KEY)
 
-def extract_invoice_data(image, mode):
-    """Použije Gemini k extrakci strukturovaných dat z obrázku faktury."""
+@st.cache_data(show_spinner="Dekódování PDF...")
+def pdf_to_images_cached(pdf_name, pdf_size, pdf_bytes):
+    """Převede PDF na seznam obrázků (jeden pro každou stránku) v šedi s využitím cache."""
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        pages = []
+        for i in range(len(doc)):
+            page = doc.load_page(i)
+            # Matrix(2, 2) = cca 144 DPI (dostatečné pro OCR, rozumná velikost)
+            # colorspace=fitz.csGRAY = stupně šedi (výrazně zmenší velikost v base64 i v Gemini)
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), colorspace=fitz.csGRAY)
+            # Uložíme jako JPG s rozumnou kvalitou (oprava parametru na jpg_quality)
+            img_bytes = pix.tobytes("jpg", jpg_quality=85)
+            pages.append({
+                "name": f"{pdf_name}_strana_{i+1}.jpg",
+                "content": img_bytes,
+                "type": "image/jpeg",
+                "id": f"{pdf_name}_p{i+1}_{pdf_size}"
+            })
+        doc.close()
+        return pages
+    except Exception as e:
+        st.error(f"Chyba při zpracování PDF {pdf_name}: {e}")
+        return []
+
+def extract_invoice_data(image_source, mode):
+    """Použije Gemini k extrakci strukturovaných dat z obrázku faktury.
+    Akceptuje PIL Image nebo bajty.
+    """
     partner_label = "supplier" if mode == "prijata" else "customer"
+    
+    # Pokud dostaneme bajty, převedeme je na PIL Image pro Gemini
+    if isinstance(image_source, bytes):
+        image = Image.open(io.BytesIO(image_source))
+    else:
+        image = image_source
     
     prompt = f"""
     Extract the following information from this invoice image:
@@ -184,20 +218,38 @@ if "last_mode" in st.session_state and st.session_state.last_mode != mode_key:
     st.session_state.current_file_idx = 0
 st.session_state.last_mode = mode_key
 
-uploaded_files = st.file_uploader(f"Nahrajte {invoice_mode.lower()} (JPG, PNG)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+uploaded_files = st.file_uploader(f"Nahrajte {invoice_mode.lower()} (JPG, PNG, PDF)", type=["jpg", "jpeg", "png", "pdf"], accept_multiple_files=True)
 
+# Rozšíření seznamu souborů o stránky PDF
+processable_items = []
 if uploaded_files:
-    if "last_files_count" not in st.session_state or st.session_state.last_files_count != len(uploaded_files):
+    for f in uploaded_files:
+        if f.type == "application/pdf":
+            # Použijeme getvalue() a metadata pro efektivní cachování v RAM
+            pages = pdf_to_images_cached(f.name, f.size, f.getvalue())
+            processable_items.extend(pages)
+        else:
+            f.seek(0)
+            img_bytes = f.read()
+            processable_items.append({
+                "name": f.name,
+                "content": img_bytes,
+                "type": f.type,
+                "id": f"{f.name}_{f.size}"
+            })
+
+if processable_items:
+    if "last_items_count" not in st.session_state or st.session_state.last_items_count != len(processable_items):
         st.session_state.current_file_idx = 0
-        st.session_state.last_files_count = len(uploaded_files)
+        st.session_state.last_items_count = len(processable_items)
 
     # Hromadná analýza - ovládání
-    unprocessed_files = [f for f in uploaded_files if (f.name + str(f.size) + mode_key) not in st.session_state.extraction_cache]
+    unprocessed_items = [item for item in processable_items if (item['id'] + mode_key) not in st.session_state.extraction_cache]
     
-    if unprocessed_files:
+    if unprocessed_items:
         col_auto1, col_auto2 = st.columns([1, 3])
         if not st.session_state.auto_analyzing:
-            if col_auto1.button(f"🤖 Hromadná analýza ({len(unprocessed_files)})", use_container_width=True):
+            if col_auto1.button(f"🤖 Hromadná analýza ({len(unprocessed_items)})", use_container_width=True):
                 st.session_state.auto_analyzing = True
                 st.rerun()
         else:
@@ -206,38 +258,34 @@ if uploaded_files:
                 st.rerun()
             
             # Provedení jednoho kroku analýzy
-            f = unprocessed_files[0]
-            f_id = f.name + str(f.size) + mode_key
-            idx_in_all = uploaded_files.index(f)
+            item = unprocessed_items[0]
+            item_id = item['id'] + mode_key
+            idx_in_all = processable_items.index(item)
             
-            with st.spinner(f"Analyzuji: {f.name} ({idx_in_all + 1}/{len(uploaded_files)})..."):
-                image_to_analyze = Image.open(f)
-                data = extract_invoice_data(image_to_analyze, mode_key)
+            with st.spinner(f"Analyzuji: {item['name']} ({idx_in_all + 1}/{len(processable_items)})..."):
+                data = extract_invoice_data(item['content'], mode_key)
                 if data:
-                    # Uložíme i metadata a data obrázku pro pozdější export
-                    f.seek(0)
-                    img_bytes = f.read()
-                    data["image_b64"] = base64.b64encode(img_bytes).decode('utf-8')
-                    data["image_filename"] = f.name
-                    data["image_mimetype"] = f.type
-                    st.session_state.extraction_cache[f_id] = data
+                    data["image_b64"] = base64.b64encode(item['content']).decode('utf-8')
+                    data["image_filename"] = item['name']
+                    data["image_mimetype"] = item['type']
+                    st.session_state.extraction_cache[item_id] = data
                 st.rerun()
     elif st.session_state.auto_analyzing:
         st.session_state.auto_analyzing = False
-        st.success("Všechny soubory byly analyzovány.")
+        st.success("Všechny položky byly analyzovány.")
 
     # Přehled stavu souborů (dvou-sloupcový seznam)
     with st.expander("📊 Přehled zpracování", expanded=True):
         c1, c2 = st.columns(2)
-        for idx, f in enumerate(uploaded_files):
-            f_id = f.name + str(f.size) + mode_key
+        for idx, item in enumerate(processable_items):
+            item_id = item['id'] + mode_key
             
             # Ikony stavu
-            analyzed_icon = "🧪" if f_id in st.session_state.extraction_cache else "⚪"
-            approved_icon = "✅" if f_id in st.session_state.approved_files else "⚪"
+            analyzed_icon = "🧪" if item_id in st.session_state.extraction_cache else "⚪"
+            approved_icon = "✅" if item_id in st.session_state.approved_files else "⚪"
             current_marker = " 📍" if idx == st.session_state.current_file_idx else ""
             
-            status_text = f"{analyzed_icon} {approved_icon} {f.name}{current_marker}"
+            status_text = f"{analyzed_icon} {approved_icon} {item['name']}{current_marker}"
             
             target_col = c1 if idx % 2 == 0 else c2
             target_col.write(status_text)
@@ -249,43 +297,37 @@ if uploaded_files:
             st.session_state.current_file_idx -= 1
             st.rerun()
     with col_nav2:
-        st.markdown(f"<p style='text-align: center; font-size: 1.2rem; font-weight: bold; margin-top: 5px;'>Soubor {st.session_state.current_file_idx + 1} z {len(uploaded_files)}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; font-size: 1.2rem; font-weight: bold; margin-top: 5px;'>Položka {st.session_state.current_file_idx + 1} z {len(processable_items)}</p>", unsafe_allow_html=True)
     with col_nav3:
-        if st.button("Další ➡️", use_container_width=True) and st.session_state.current_file_idx < len(uploaded_files) - 1:
+        if st.button("Další ➡️", use_container_width=True) and st.session_state.current_file_idx < len(processable_items) - 1:
             st.session_state.current_file_idx += 1
             st.rerun()
 
     st.divider()
-    current_file = uploaded_files[st.session_state.current_file_idx]
-    image = Image.open(current_file)
+    current_item = processable_items[st.session_state.current_file_idx]
+    image = Image.open(io.BytesIO(current_item['content']))
     
     col_img, col_form = st.columns(2)
     with col_img:
-        st.image(image, caption=current_file.name, use_container_width=True)
+        st.image(image, caption=current_item['name'], use_container_width=True)
     
     with col_form:
-        file_id = current_file.name + str(current_file.size) + mode_key
-        if file_id not in st.session_state.extraction_cache:
-            if st.button("Analyzovat soubor"):
+        item_id = current_item['id'] + mode_key
+        if item_id not in st.session_state.extraction_cache:
+            if st.button("Analyzovat položku"):
                 with st.spinner("Gemini analyzuje..."):
-                    data = extract_invoice_data(image, mode_key)
+                    data = extract_invoice_data(current_item['content'], mode_key)
                     if data:
-                        # Uložíme i metadata a data obrázku
-                        current_file.seek(0)
-                        img_bytes = current_file.read()
-                        data["image_b64"] = base64.b64encode(img_bytes).decode('utf-8')
-                        data["image_filename"] = current_file.name
-                        data["image_mimetype"] = current_file.type
-                        st.session_state.extraction_cache[file_id] = data
+                        data["image_b64"] = base64.b64encode(current_item['content']).decode('utf-8')
+                        data["image_filename"] = current_item['name']
+                        data["image_mimetype"] = current_item['type']
+                        st.session_state.extraction_cache[item_id] = data
                         st.rerun()
         
-        if file_id in st.session_state.extraction_cache:
-            data = st.session_state.extraction_cache[file_id]
+        if item_id in st.session_state.extraction_cache:
+            data = st.session_state.extraction_cache[item_id]
             st.subheader(f"Ověření dat ({invoice_mode.split(' ')[0]})")
-            with st.form(key=f"form_{file_id}"):
-                # ... (rest of the form stays the same)
-                # ...
-                # (I will keep the rest of the form logic from the previous turn)
+            with st.form(key=f"form_{item_id}"):
                 c1, c2 = st.columns(2)
                 inv_num = c1.text_input("Číslo faktury", data.get("invoice_number"))
                 iss_date = c2.text_input("Datum vystavení", data.get("issue_date"))
@@ -352,7 +394,7 @@ if uploaded_files:
                 submit_next = c_btn2.form_submit_button("✅ Schválit a další ➡️", use_container_width=True)
                 
                 if submit or submit_next:
-                    st.session_state.approved_files.add(file_id)
+                    st.session_state.approved_files.add(item_id)
                     new_ico = edited_data.get("partner_ico")
                     new_vs = edited_data.get("variable_symbol")
                     
@@ -369,7 +411,7 @@ if uploaded_files:
                         st.session_state.processed_invoices.append(edited_data)
                         st.success("Přidáno do seznamu.")
                     
-                    if submit_next and st.session_state.current_file_idx < len(uploaded_files) - 1:
+                    if submit_next and st.session_state.current_file_idx < len(processable_items) - 1:
                         st.session_state.current_file_idx += 1
                     
                     st.rerun()

@@ -4,3 +4,4 @@ python-dotenv
 lxml
 pillow
 pandas
+pymupdf
