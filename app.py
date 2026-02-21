@@ -196,16 +196,20 @@ def generate_flexibee_xml(invoices_list, mode, include_attachments=True):
     for data in invoices_list:
         invoice = ET.SubElement(root, tag_name)
         
+        # Očištění polí od mezer pro FlexiBee
+        def clean_val(key):
+            val = data.get(key, "")
+            if val is None: return ""
+            return str(val).replace(" ", "").replace("\xa0", "") # Odstraní i nezalomitelné mezery
+
         if mode == "prijata":
-            # cisDosle je číslo na papíře od dodavatele, fallback na variabilní symbol pokud chybí
-            inv_num = data.get("invoice_number") or data.get("variable_symbol", "")
-            ET.SubElement(invoice, "cisDosle").text = str(inv_num)
-            # U přijatých neposíláme 'kod', aby FlexiBee přidělilo vlastní interní číslo
+            # cisDosle je číslo na papíře od dodavatele
+            inv_num = clean_val("invoice_number") or clean_val("variable_symbol")
+            ET.SubElement(invoice, "cisDosle").text = inv_num
         else:
-            # U vydaných se 'kod' často shoduje s číslem faktury
-            ET.SubElement(invoice, "kod").text = str(data.get("invoice_number", ""))
+            ET.SubElement(invoice, "kod").text = clean_val("invoice_number")
             
-        ET.SubElement(invoice, "varSym").text = str(data.get("variable_symbol", ""))
+        ET.SubElement(invoice, "varSym").text = clean_val("variable_symbol")
         ET.SubElement(invoice, "datVyst").text = str(data.get("issue_date", ""))
         
         # Datum zdanitelného plnění (DUZP) - fallback na datum vystavení
@@ -219,10 +223,10 @@ def generate_flexibee_xml(invoices_list, mode, include_attachments=True):
             ET.SubElement(invoice, "nazFirmy").text = str(data['partner_name'])
 
         if data.get("partner_ico"):
-            ET.SubElement(invoice, "ic").text = str(data['partner_ico'])
+            ET.SubElement(invoice, "ic").text = clean_val("partner_ico")
         
         if data.get("partner_vat_id"):
-            ET.SubElement(invoice, "dic").text = str(data['partner_vat_id'])
+            ET.SubElement(invoice, "dic").text = clean_val("partner_vat_id")
         
         # Popis dokladu - pouze pokud je vyplněn
         if data.get("description"):
