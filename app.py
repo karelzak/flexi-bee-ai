@@ -177,6 +177,11 @@ def extract_invoice_data(image_source, mode):
         )
         data = json.loads(response.text)
         
+        # Očištění polí od mezer (invoice_number, variable_symbol, partner_ico, partner_vat_id)
+        for key in ["invoice_number", "variable_symbol", "partner_ico", "partner_vat_id"]:
+            if data.get(key):
+                data[key] = str(data[key]).replace(" ", "").replace("\xa0", "")
+
         # Normalizace měny (Gemini občas vrací Kč místo CZK)
         if data.get("currency") and data["currency"].strip().upper() in ["KČ", "KC"]:
             data["currency"] = "CZK"
