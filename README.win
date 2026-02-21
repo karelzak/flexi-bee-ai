@@ -6,7 +6,7 @@ Tento návod vás provede instalací aplikace na čistý systém Windows.
 
 1. Stáhněte si soubor `install_win.ps1` z tohoto repozitáře.
 2. Klikněte na něj pravým tlačítkem a zvolte **"Run with PowerShell"** (Spustit pomocí PowerShellu).
-3. Skript se vás zeptá na povolení instalace nástrojů (Python, Git, ImageMagick).
+3. Skript se vás zeptá na povolení instalace nástrojů (Python, Git).
 4. Po dokončení vznikne na ploše nebo v adresáři zástupce `Spustit-FlexiBee-AI.bat`.
 
 ---
@@ -20,8 +20,6 @@ Otevřete **PowerShell jako správce** a spusťte:
 ```powershell
 winget install -e --id Python.Python.3.11
 winget install -e --id Git.Git
-winget install -e --id ImageMagick.ImageMagick
-winget install -e --id ArtifexSoftware.Ghostscript
 ```
 *Poznámka: Po instalaci Pythonu a Gitu může být vyžadován restart PowerShellu nebo počítače.*
 
@@ -55,6 +53,5 @@ streamlit run app.py
 Nebo použijte vytvořený soubor `run_app.bat`.
 
 ## Možné problémy
-- **ImageMagick:** Pokud aplikace hlásí chybu s ImageMagick, ujistěte se, že je v systémové cestě PATH.
 - **Python:** Pokud příkaz `python` nefunguje, zkuste `py`.
 - **Zabezpečení:** PowerShell může blokovat spouštění skriptů. V takovém případě spusťte: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`.

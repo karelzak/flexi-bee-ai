@@ -18,11 +18,9 @@ function Install-WithWinget {
     }
 }
 
-# Instalace Pythonu, Gitu a ImageMagicku
+# Instalace Pythonu a Gitu
 Install-WithWinget "Python.Python.3.11" "Python 3.11"
 Install-WithWinget "Git.Git" "Git"
-Install-WithWinget "ImageMagick.ImageMagick" "ImageMagick"
-Install-WithWinget "ArtifexSoftware.Ghostscript" "Ghostscript"
 
 # 2. Nastavení Python virtuálního prostředí
 Write-Host "`nNastavení Python virtuálního prostředí..." -ForegroundColor Cyan
