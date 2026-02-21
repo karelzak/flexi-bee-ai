@@ -60,6 +60,7 @@ def extract_invoice_data(image_source, mode):
     Extract the following information from this invoice image:
     - invoice_number (string)
     - variable_symbol (string)
+    - description (string - short summary of what the invoice is for, e.g., "Kancelářské potřeby", "Oprava dveří", max 50 characters)
     - issue_date (YYYY-MM-DD)
     - vat_date (YYYY-MM-DD - "Datum zdanitelného plnění" or DUZP. If not found, use null)
     - due_date (YYYY-MM-DD)
@@ -129,8 +130,9 @@ def generate_flexibee_xml(invoices_list, mode, include_attachments=True):
         if data.get("partner_vat_id"):
             ET.SubElement(invoice, "dic").text = str(data['partner_vat_id'])
         
-        if not data.get("partner_ico") and not data.get("partner_vat_id"):
-            ET.SubElement(invoice, "popis").text = f"Partner: {data.get('partner_name', 'Neznámý')}"
+        # Popis dokladu - pouze pokud je vyplněn
+        if data.get("description"):
+            ET.SubElement(invoice, "popis").text = str(data["description"])
          
         # Tax Exempt + Rounding
         base_0 = float(data.get("base_0", 0.0)) if data.get("base_0") else 0.0
@@ -347,11 +349,15 @@ if processable_items:
                 
                 c1, c2 = st.columns(2)
                 due_date = c1.text_input("Datum splatnosti", data.get("due_date"))
-                p_name = c2.text_input(partner_ui_label, data.get("partner_name"))
+                desc = c2.text_input("Popis (stručný odhad obsahu)", data.get("description", ""), max_chars=50)
+
+                c1, c2 = st.columns(2)
+                p_name = c1.text_input(partner_ui_label, data.get("partner_name"))
+                p_ico = c2.text_input(f"IČO {partner_ui_label.lower()}", data.get("partner_ico"))
                 
                 c1, c2 = st.columns(2)
-                p_ico = c1.text_input(f"IČO {partner_ui_label.lower()}", data.get("partner_ico"))
-                p_dic = c2.text_input(f"DIČ {partner_ui_label.lower()}", data.get("partner_vat_id"))
+                p_dic = c1.text_input(f"DIČ {partner_ui_label.lower()}", data.get("partner_vat_id"))
+                c2.empty()
                 
                 st.divider()
                 
@@ -378,6 +384,7 @@ if processable_items:
                 edited_data = {
                     "invoice_number": inv_num,
                     "variable_symbol": var_sym,
+                    "description": desc,
                     "issue_date": iss_date,
                     "vat_date": vat_date,
                     "due_date": due_date,
@@ -432,6 +439,7 @@ if st.session_state.processed_invoices:
     df = pd.DataFrame(st.session_state.processed_invoices)
     st.dataframe(df, use_container_width=True, column_config={
         "invoice_number": "Číslo faktury", "variable_symbol": "Var. symbol",
+        "description": "Popis",
         "issue_date": "Vystaveno", "vat_date": "DUZP", "due_date": "Splatnost",
         "partner_name": partner_ui_label, "partner_ico": "IČO", "partner_vat_id": "DIČ",
         "base_0": "Základ 0%",
