@@ -23,13 +23,21 @@ winget install -e --id Git.Git
 ```
 *Poznámka: Po instalaci Pythonu a Gitu může být vyžadován restart PowerShellu nebo počítače.*
 
-### Krok B: Stažení aplikace
+### Krok B: Konfigurace skeneru (NAPS2)
+Pro správnou funkci skenování z aplikace:
+1. Spusťte program **NAPS2** (klasické okno).
+2. Klikněte na **"Profily"** -> **"Nový"**.
+3. Jako **Název profilu** zadejte přesně: `flexibee`.
+4. Vyberte svůj skener, nastavte zdroj (ADF / Podavač), černobílé skenování (Grayscale) a rozlišení (např. 150-200 DPI).
+5. Uložte profil. Aplikace nyní bude tento profil používat pro automatické skenování.
+
+### Krok C: Stažení aplikace
 ```powershell
 git clone https://github.com/karelzak/flexi-bee-ai.git
 cd flexi-bee-ai
 ```
 
-### Krok C: Nastavení Python prostředí
+### Krok D: Nastavení Python prostředí
 V adresáři aplikace spusťte:
 ```powershell
 python -m venv venv
@@ -37,7 +45,7 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### Krok D: Konfigurace API klíče
+### Krok E: Konfigurace API klíče
 1. V adresáři aplikace najděte soubor `.env.example`.
 2. Zkopírujte ho a pojmenujte jako `.env`.
 3. Otevřete `.env` v Poznámkovém bloku a vložte svůj `GOOGLE_API_KEY`.

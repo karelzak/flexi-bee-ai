@@ -90,13 +90,12 @@ def run_naps2_scan(company_name):
     # Výstupní soubor (NAPS2 umí automaticky číslovat pokud je v masce (n))
     output_pattern = str(scan_dir / "scan_(n).jpg")
     
-    # NAPS2 Console příkaz
+    # NAPS2 Console příkaz využívající profil "flexibee"
+    # Profil si uživatel vytvoří v NAPS2 GUI (nastaví si tam scanner, ADF, atd.)
     cmd = [
         naps2_path,
+        "-p", "flexibee",
         "-o", output_pattern,
-        "--dpi", "150",
-        "--bitdepth", "Grayscale",
-        "--source", "adf",
         "--split",
         "--quiet"
     ]
