@@ -67,6 +67,8 @@ if "selected_doc_id" not in st.session_state:
     st.session_state.selected_doc_id = None
 if "auto_analyzing" not in st.session_state:
     st.session_state.auto_analyzing = False
+if "checking_anomalies" not in st.session_state:
+    st.session_state.checking_anomalies = False
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
 
@@ -94,6 +96,11 @@ partner_ui_label = "Dodavatel" if mode_key == "prijata" else "Odběratel"
 st.sidebar.subheader("Export")
 include_images = st.sidebar.checkbox("Přikládat obrazy do XML", value=True)
 
+st.sidebar.subheader("Automatizace")
+auto_load = st.sidebar.checkbox("Automaticky načíst AI data", value=False)
+auto_approve = st.sidebar.checkbox("Automaticky schválit", value=False)
+auto_anomaly = st.sidebar.checkbox("Automaticky kontrolovat anomálie", value=False)
+
 # Initialize OCR Engine
 try:
     ocr_engine = GeminiOCREngine()
@@ -116,6 +123,7 @@ with col_up1:
     )
     if uploaded_files:
         existing_names = [d.name for d in st.session_state.doc_manager.documents]
+        new_docs_added = False
         for f in uploaded_files:
             if f.type == "application/pdf":
                 pages = utils.pdf_to_images(f.name, f.getvalue())
@@ -123,10 +131,16 @@ with col_up1:
                     if p['name'] not in existing_names:
                         doc = FlexiDoc(p['name'], p['content'], p['type'], mode_key)
                         st.session_state.doc_manager.add_document(doc)
+                        new_docs_added = True
             else:
                 if f.name not in existing_names:
                     doc = FlexiDoc(f.name, f.getvalue(), f.type, mode_key)
                     st.session_state.doc_manager.add_document(doc)
+                    new_docs_added = True
+        
+        if new_docs_added and auto_load:
+            st.session_state.auto_analyzing = True
+            st.rerun()
 
 with col_up2:
     c_scan1, c_scan2 = st.columns(2)
@@ -138,6 +152,8 @@ with col_up2:
             st.session_state.doc_manager.add_document(doc)
         if scanned:
             st.success(f"Naskenováno {len(scanned)} stran.")
+            if auto_load:
+                st.session_state.auto_analyzing = True
             st.rerun()
             
     if c_scan2.button("🖨️ Sklo", use_container_width=True, help="Skenovat ze skla (profil 'flexibee_glass')"):
@@ -148,6 +164,8 @@ with col_up2:
             st.session_state.doc_manager.add_document(doc)
         if scanned:
             st.success(f"Naskenováno {len(scanned)} stran.")
+            if auto_load:
+                st.session_state.auto_analyzing = True
             st.rerun()
 
 docs = st.session_state.doc_manager.documents
@@ -156,6 +174,41 @@ if docs:
     # 2. Document Table Section
     st.subheader("📋 Seznam dokumentů")
     
+    # Automatické spuštění analýzy pokud je zapnuto a jsou nové dokumenty
+    unprocessed_docs = [d for d in docs if not d.data]
+    
+    if st.session_state.auto_analyzing and not unprocessed_docs:
+        st.session_state.auto_analyzing = False
+        st.rerun()
+
+    if auto_load and unprocessed_docs and not st.session_state.auto_analyzing:
+        st.session_state.auto_analyzing = True
+        st.rerun()
+
+    # Progress bar / Status pro automatizaci
+    if st.session_state.auto_analyzing:
+        all_count = len(docs)
+        processed_count = all_count - len(unprocessed_docs)
+        if all_count > 0:
+            progress = processed_count / all_count
+            st.progress(progress, text=f"🤖 AI Analýza v průběhu: {processed_count} z {all_count} hotovo...")
+    elif st.session_state.checking_anomalies:
+        st.info("🔍 AI kontrola anomálií v průběhu, prosím čekejte...")
+    
+    # Background steps for automation
+    if st.session_state.checking_anomalies:
+        approved_docs = [d for d in docs if d.approved]
+        if approved_docs:
+            try:
+                anomalies = ocr_engine.check_for_anomalies(approved_docs, mode_key)
+                for res in anomalies:
+                    doc = st.session_state.doc_manager.get_document(res.get("item_id"))
+                    if doc: doc.anomaly = res.get("reason")
+            except Exception as e:
+                st.error(f"Chyba při kontrole anomálií: {e}")
+        st.session_state.checking_anomalies = False
+        st.rerun()
+
     # Prepare data for the table
     table_data = []
     for d in docs:
@@ -266,18 +319,15 @@ if docs:
         if st.button(f"✅ Schválit vše ({len(to_approve)})", use_container_width=True, help="Označí všechny dokumenty s načtenými daty jako schválené."):
             for d in to_approve:
                 d.approved = True
+            if auto_anomaly:
+                st.session_state.checking_anomalies = True
             st.rerun()
 
     with col_bulk4:
         if st.button("🔍 Kontrola anomálií", use_container_width=True):
-            approved_docs = [d for d in docs if d.approved]
-            if approved_docs:
-                with st.spinner("Hledám anomálie..."):
-                    anomalies = ocr_engine.check_for_anomalies(approved_docs, mode_key)
-                    for res in anomalies:
-                        doc = st.session_state.doc_manager.get_document(res.get("item_id"))
-                        if doc: doc.anomaly = res.get("reason")
-                    st.rerun()
+            if any(d.approved for d in docs):
+                st.session_state.checking_anomalies = True
+                st.rerun()
             else:
                 st.info("Nejprve schvalte nějaké faktury.")
 
@@ -300,10 +350,19 @@ if docs:
         doc = unprocessed_docs[0]
         try:
             doc.run_ocr(ocr_engine, mode_key)
+            if auto_approve:
+                doc.approved = True
+                
+                # Pokud po auto-schválení už nejsou žádné další dokumenty k analýze
+                # a je zapnuta auto-anomálie, naplánujeme ji
+                if len(unprocessed_docs) == 1 and auto_anomaly:
+                    st.session_state.checking_anomalies = True
+            
             st.rerun()
         except Exception as e:
             st.error(f"Chyba u {doc.name}: {e}")
             st.session_state.auto_analyzing = False
+
 
     st.divider()
 
