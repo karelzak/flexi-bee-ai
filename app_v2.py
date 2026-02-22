@@ -93,7 +93,7 @@ except ValueError as e:
 st.title(f"📄 Převodník: Faktury {mode_key}")
 
 # 1. Upload & Scan Section
-col_up1, col_up2, col_up3 = st.columns([2, 1, 1])
+col_up1, col_up2 = st.columns([3, 1])
 with col_up1:
     uploaded_files = st.file_uploader(
         "📂 Vybrat soubory (JPG, PNG, PDF)...", 
@@ -126,13 +126,6 @@ with col_up2:
         if scanned:
             st.success(f"Naskenováno {len(scanned)} stran.")
             st.rerun()
-
-with col_up3:
-    if st.button("🗑️ Smazat všechna data", use_container_width=True, help="Vymaže všechny načtené dokumenty z paměti aplikace. Dokumenty na disku zůstanou zachovány."):
-        st.session_state.doc_manager.clear()
-        st.session_state.selected_doc_id = None
-        st.session_state.uploader_key += 1 # Reset the file_uploader component
-        st.rerun()
 
 docs = st.session_state.doc_manager.documents
 
@@ -190,12 +183,12 @@ if docs:
             st.rerun()
 
     # Bulk actions under the table
-    col_bulk1, col_bulk2, col_bulk3 = st.columns([1, 1, 1])
+    col_bulk1, col_bulk2, col_bulk3, col_bulk4 = st.columns([1, 1, 1, 1])
     unprocessed_docs = [d for d in docs if not d.data]
     with col_bulk1:
         if unprocessed_docs:
             if not st.session_state.auto_analyzing:
-                if st.button(f"🤖 Hromadné načtení AI dat ({len(unprocessed_docs)})", use_container_width=True):
+                if st.button(f"🤖 Načíst AI data ({len(unprocessed_docs)})", use_container_width=True):
                     st.session_state.auto_analyzing = True
                     st.rerun()
             else:
@@ -204,6 +197,13 @@ if docs:
                     st.rerun()
     
     with col_bulk2:
+        if st.button("🗑️ Smazat vše", use_container_width=True, help="Vymaže všechny dokumenty z pracovní plochy."):
+            st.session_state.doc_manager.clear()
+            st.session_state.selected_doc_id = None
+            st.session_state.uploader_key += 1
+            st.rerun()
+
+    with col_bulk3:
         if st.button("🔍 Kontrola anomálií", use_container_width=True):
             approved_docs = [d for d in docs if d.approved]
             if approved_docs:
@@ -216,7 +216,7 @@ if docs:
             else:
                 st.info("Nejprve schvalte nějaké faktury.")
 
-    with col_bulk3:
+    with col_bulk4:
         approved_docs = [d for d in docs if d.approved]
         if approved_docs:
             xml_data = st.session_state.doc_manager.to_xml(mode_key, include_attachments=include_images)
