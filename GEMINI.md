@@ -1,7 +1,7 @@
 # Flexi-Bee AI: Refactoring & v2 Overview
 
 ## Architecture (v2)
-The application has been refactored from a procedural script (`app.py`) into a modular, object-oriented system to improve maintainability and performance.
+The application has been refactored from a legacy procedural script (`app.py`) into a modular, object-oriented system to improve maintainability and performance.
 
 ### Key Components
 - **`models.py`**:

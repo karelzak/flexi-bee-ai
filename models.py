@@ -30,7 +30,7 @@ class FlexiDoc:
         # Ensure ID consistency for UI mapping if needed
         self.data["item_id"] = self.id
         
-        # Normalization logic moved from app.py
+        # Normalization logic moved from legacy app.py
         for key in ["invoice_number", "variable_symbol", "partner_ico", "partner_vat_id"]:
             if self.data.get(key):
                 self.data[key] = str(self.data[key]).replace(" ", "").replace("\xa0", "")

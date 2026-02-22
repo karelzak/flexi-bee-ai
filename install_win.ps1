@@ -65,7 +65,7 @@ Write-Host "`nVytváření spouštěcího souboru run_app.bat..." -ForegroundCol
 $batContent = @"
 @echo off
 echo Spousteni Flexi-Bee AI...
-.\venv\Scripts\streamlit.exe run app.py
+.\venv\Scripts\python.exe run.py
 pause
 "@
 $batContent | Out-File -FilePath "run_app.bat" -Encoding ascii
