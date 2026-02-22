@@ -195,7 +195,7 @@ if docs:
             st.rerun()
 
     # Bulk actions under the table
-    col_bulk1, col_bulk2, col_bulk3, col_bulk4 = st.columns([1, 1, 1, 1])
+    col_bulk1, col_bulk2, col_bulk3, col_bulk4, col_bulk5 = st.columns([1, 1, 1, 1, 1])
     unprocessed_docs = [d for d in docs if not d.data]
     with col_bulk1:
         if unprocessed_docs:
@@ -216,6 +216,13 @@ if docs:
             st.rerun()
 
     with col_bulk3:
+        to_approve = [d for d in docs if d.data and not d.approved]
+        if st.button(f"✅ Schválit vše ({len(to_approve)})", use_container_width=True, help="Označí všechny dokumenty s načtenými daty jako schválené."):
+            for d in to_approve:
+                d.approved = True
+            st.rerun()
+
+    with col_bulk4:
         if st.button("🔍 Kontrola anomálií", use_container_width=True):
             approved_docs = [d for d in docs if d.approved]
             if approved_docs:
@@ -228,7 +235,7 @@ if docs:
             else:
                 st.info("Nejprve schvalte nějaké faktury.")
 
-    with col_bulk4:
+    with col_bulk5:
         approved_docs = [d for d in docs if d.approved]
         if approved_docs:
             xml_data = st.session_state.doc_manager.to_xml(mode_key, include_attachments=include_images)
