@@ -157,7 +157,12 @@ if docs:
             "Stav": status,
             "Soubor": d.name,
             "Číslo": d.data.get("invoice_number", ""),
+            "VS": d.data.get("variable_symbol", ""),
+            "Vystaveno": d.data.get("issue_date", ""),
+            "DUZP": d.data.get("vat_date", ""),
+            "Splatnost": d.data.get("due_date", ""),
             "Partner": d.data.get("partner_name", ""),
+            "IČO": d.data.get("partner_ico", ""),
             "Základ 0%": d.data.get("base_0", 0.0),
             "Zaokrouhl.": d.data.get("rounding", 0.0),
             "Základ celkem": d.data.get("total_base", 0.0),
@@ -176,7 +181,18 @@ if docs:
     
     df['Vybrat'] = df['ID'] == st.session_state.selected_doc_id
     
-    cols_to_show = ["Vybrat", "Stav", "Soubor", "Číslo", "Partner", "Základ 0%", "Zaokrouhl.", "Základ celkem", "DPH celkem", "Částka", "Měna", "Anomálie"]
+    # Identifikovat sloupce, které obsahují pouze nuly (pro číselné typy)
+    zero_cols = []
+    numeric_check = ["Základ 0%", "Zaokrouhl.", "Základ celkem", "DPH celkem"]
+    for col in numeric_check:
+        if col in df.columns:
+            vals = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            if (vals == 0).all():
+                zero_cols.append(col)
+
+    cols_to_show = ["Vybrat", "Stav", "Soubor", "Číslo", "VS", "Vystaveno", "DUZP", "Splatnost", "Partner", "IČO"]
+    cols_to_show += [c for c in ["Základ 0%", "Zaokrouhl.", "Základ celkem", "DPH celkem"] if c not in zero_cols]
+    cols_to_show += ["Částka", "Měna", "Anomálie"]
     
     edited_df = st.data_editor(
         df[cols_to_show],
@@ -185,12 +201,22 @@ if docs:
         key="doc_selector",
         column_config={
             "Vybrat": st.column_config.CheckboxColumn(" ", width="small"),
-            "Anomálie": st.column_config.TextColumn("⚠️ Anomálie", width="medium"),
-            "Základ 0%": st.column_config.NumberColumn(format="%.2f"),
-            "Zaokrouhl.": st.column_config.NumberColumn(format="%.2f"),
-            "Základ celkem": st.column_config.NumberColumn(format="%.2f"),
-            "DPH celkem": st.column_config.NumberColumn(format="%.2f"),
-            "Částka": st.column_config.NumberColumn("Celkem", format="%.2f"),
+            "Stav": st.column_config.TextColumn("Stav", width="small"),
+            "Soubor": st.column_config.TextColumn("Soubor", width="small"),
+            "Anomálie": st.column_config.TextColumn("⚠️ Anomálie", width="small"),
+            "Číslo": st.column_config.TextColumn("Číslo", width="medium"),
+            "VS": st.column_config.TextColumn("VS", width="medium"),
+            "Vystaveno": st.column_config.TextColumn("Vystaveno", width="small"),
+            "DUZP": st.column_config.TextColumn("DUZP", width="small"),
+            "Splatnost": st.column_config.TextColumn("Splatnost", width="small"),
+            "Partner": st.column_config.TextColumn("Partner", width="medium"),
+            "IČO": st.column_config.TextColumn("IČO", width="small"),
+            "Základ 0%": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "Zaokrouhl.": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "Základ celkem": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "DPH celkem": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "Částka": st.column_config.NumberColumn("Celkem", format="%.2f", width="small"),
+            "Měna": st.column_config.TextColumn("Měna", width="small"),
         },
         disabled=[c for c in cols_to_show if c != "Vybrat"]
     )
