@@ -1,4 +1,4 @@
-# Instalace Flexi-Bee AI na Windows
+# Instalace Flexi-Bee AI na Windows (v2)
 
 Tento návod vás provede instalací aplikace na čistý systém Windows.
 
@@ -20,16 +20,26 @@ Otevřete **PowerShell jako správce** a spusťte:
 ```powershell
 winget install -e --id Python.Python.3.11
 winget install -e --id Git.Git
+winget install -e --id NAPS2.NAPS2
 ```
 *Poznámka: Po instalaci Pythonu a Gitu může být vyžadován restart PowerShellu nebo počítače.*
 
 ### Krok B: Konfigurace skeneru (NAPS2)
-Pro správnou funkci skenování z aplikace:
-1. Spusťte program **NAPS2** (klasické okno).
-2. Klikněte na **"Profily"** -> **"Nový"**.
-3. Jako **Název profilu** zadejte přesně: `flexibee`.
-4. Vyberte svůj skener, nastavte zdroj (ADF / Podavač), černobílé skenování (Grayscale) a rozlišení (např. 150-200 DPI).
-5. Uložte profil. Aplikace nyní bude tento profil používat pro automatické skenování.
+Pro správnou funkci skenování přímo z aplikace je potřeba v programu **NAPS2** vytvořit dva profily:
+
+1. **Profil pro podavač (ADF):**
+   - **Název profilu:** `flexibee` (přesně takto)
+   - **Zdroj:** ADF / Podavač (Auto Document Feeder)
+   - **Formát:** Grayscale (Stupně šedi)
+   - **Rozlišení:** 150-200 DPI
+
+2. **Profil pro sklo (Flatbed):**
+   - **Název profilu:** `flexibee_glass` (přesně takto)
+   - **Zdroj:** Glass / Sklo
+   - **Formát:** Grayscale (Stupně šedi)
+   - **Rozlišení:** 150-200 DPI
+
+Aplikace nyní bude tyto profily používat pro tlačítka "Podavač" a "Sklo".
 
 ### Krok C: Stažení aplikace
 ```powershell
@@ -54,11 +64,11 @@ pip install -r requirements.txt
 
 ## 3. Spuštění aplikace
 
-Aplikaci spustíte vždy příkazem (v aktivovaném venv):
+Aplikaci nejsnáze spustíte pomocí souboru `run_app.bat`.
+Nebo manuálně v aktivovaném venv příkazem:
 ```powershell
-streamlit run app.py
+python run.py
 ```
-Nebo použijte vytvořený soubor `run_app.bat`.
 
 ## Možné problémy
 - **Python:** Pokud příkaz `python` nefunguje, zkuste `py`.

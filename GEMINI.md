@@ -23,7 +23,9 @@ The application has been refactored from a procedural script (`app.py`) into a m
 - Stable UUID-based state management in Streamlit, leading to faster UI responsiveness.
 
 ## Future Plans
+- [x] Add support for multiple scanner profiles (NAPS2) - **Done**
+- [x] Restore missing tax and rounding fields in UI - **Done**
+- [x] Optimize document table with fixed date widths and auto-hide empty columns - **Done**
 - [ ] Implement document reordering in the UI.
-- [ ] Add support for multiple scanner profiles (NAPS2).
 - [ ] Direct scanner-to-table automation.
 - [ ] Enhanced document deletion and management.
