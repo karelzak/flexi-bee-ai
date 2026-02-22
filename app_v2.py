@@ -354,22 +354,24 @@ if docs:
             )
 
     # 3. Auto-analysis background step
-    if st.session_state.auto_analyzing and unprocessed_docs:
-        doc = unprocessed_docs[0]
-        try:
-            doc.run_ocr(ocr_engine, mode_key)
-            if auto_approve:
-                doc.approved = True
-                
-                # Pokud po auto-schválení už nejsou žádné další dokumenty k analýze
-                # a je zapnuta auto-anomálie, naplánujeme ji
-                if len(unprocessed_docs) == 1 and auto_anomaly:
-                    st.session_state.checking_anomalies = True
-            
-            st.rerun()
-        except Exception as e:
-            st.error(f"Chyba u {doc.name}: {e}")
+    if st.session_state.auto_analyzing:
+        if unprocessed_docs:
+            doc = unprocessed_docs[0]
+            try:
+                doc.run_ocr(ocr_engine, mode_key)
+                if auto_approve:
+                    doc.approved = True
+                st.rerun()
+            except Exception as e:
+                st.error(f"Chyba u {doc.name}: {e}")
+                st.session_state.auto_analyzing = False
+        else:
+            # Všechna OCR data načtena, můžeme ukončit auto_analyzing
             st.session_state.auto_analyzing = False
+            # Pokud je zapnuta auto-anomálie, naplánujeme ji až TEĎ, když je vše hotovo
+            if auto_anomaly and any(d.approved for d in docs):
+                st.session_state.checking_anomalies = True
+            st.rerun()
 
 
     st.divider()
