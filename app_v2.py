@@ -56,6 +56,8 @@ if "selected_doc_id" not in st.session_state:
     st.session_state.selected_doc_id = None
 if "auto_analyzing" not in st.session_state:
     st.session_state.auto_analyzing = False
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
 
 # Sidebar for Settings
 st.sidebar.title("Nastavení")
@@ -93,7 +95,13 @@ st.title(f"📄 Převodník: Faktury {mode_key}")
 # 1. Upload & Scan Section
 col_up1, col_up2, col_up3 = st.columns([2, 1, 1])
 with col_up1:
-    uploaded_files = st.file_uploader("📂 Vybrat soubory (JPG, PNG, PDF)...", type=["jpg", "jpeg", "png", "pdf"], accept_multiple_files=True, label_visibility="collapsed")
+    uploaded_files = st.file_uploader(
+        "📂 Vybrat soubory (JPG, PNG, PDF)...", 
+        type=["jpg", "jpeg", "png", "pdf"], 
+        accept_multiple_files=True, 
+        label_visibility="collapsed",
+        key=f"uploader_{st.session_state.uploader_key}"
+    )
     if uploaded_files:
         existing_names = [d.name for d in st.session_state.doc_manager.documents]
         for f in uploaded_files:
@@ -120,9 +128,10 @@ with col_up2:
             st.rerun()
 
 with col_up3:
-    if st.button("🗑️ Vymazat vše", use_container_width=True):
+    if st.button("🗑️ Smazat všechna data", use_container_width=True, help="Vymaže všechny načtené dokumenty z paměti aplikace. Dokumenty na disku zůstanou zachovány."):
         st.session_state.doc_manager.clear()
         st.session_state.selected_doc_id = None
+        st.session_state.uploader_key += 1 # Reset the file_uploader component
         st.rerun()
 
 docs = st.session_state.doc_manager.documents
@@ -136,7 +145,7 @@ if docs:
     for d in docs:
         status = "🆕 Nový"
         if d.approved: status = "✅ Schváleno"
-        elif d.data: status = "🧪 Analyzováno"
+        elif d.data: status = "🧪 Načteno AI"
         
         row = {
             "ID": d.id,
@@ -186,11 +195,11 @@ if docs:
     with col_bulk1:
         if unprocessed_docs:
             if not st.session_state.auto_analyzing:
-                if st.button(f"🤖 Hromadná analýza ({len(unprocessed_docs)})", use_container_width=True):
+                if st.button(f"🤖 Hromadné načtení AI dat ({len(unprocessed_docs)})", use_container_width=True):
                     st.session_state.auto_analyzing = True
                     st.rerun()
             else:
-                if st.button("🛑 Zastavit analýzu", use_container_width=True):
+                if st.button("🛑 Zastavit načítání", use_container_width=True):
                     st.session_state.auto_analyzing = False
                     st.rerun()
     
@@ -247,7 +256,7 @@ if docs:
         
         with col_form:
             if not current_doc.data:
-                if st.button("Analyzovat nyní", type="primary", use_container_width=True):
+                if st.button("Načíst AI data nyní", type="primary", use_container_width=True):
                     with st.spinner("Gemini pracuje..."):
                         current_doc.run_ocr(ocr_engine, mode_key)
                         st.rerun()
