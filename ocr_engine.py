@@ -51,7 +51,7 @@ class GeminiOCREngine:
         
         try:
             response = self.client.models.generate_content(
-                model='gemini-2.0-flash', # Or whatever model version is preferred
+                model='gemini-2.5-flash',
                 contents=[prompt, image],
                 config={'response_mime_type': 'application/json'}
             )
@@ -117,7 +117,7 @@ class GeminiOCREngine:
         
         try:
             response = self.client.models.generate_content(
-                model='gemini-2.0-flash',
+                model='gemini-2.5-flash',
                 contents=[prompt, json.dumps(simplified_data, indent=2)],
                 config={'response_mime_type': 'application/json'}
             )
