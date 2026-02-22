@@ -44,6 +44,13 @@ class FlexiDoc:
         if not self.data.get("due_date"):
             self.data["due_date"] = self.data.get("issue_date")
 
+    def clear_data(self):
+        """Clears AI extracted data and resets approval/anomaly status."""
+        self.data = {}
+        self.approved = False
+        self.anomaly = None
+        self.raw_gemini_response = None
+
     def get_image_mimetype(self) -> str:
         return self.mime_type
 

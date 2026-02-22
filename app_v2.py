@@ -183,7 +183,7 @@ if docs:
             st.rerun()
 
     # Bulk actions under the table
-    col_bulk1, col_bulk2, col_bulk3, col_bulk4 = st.columns([1, 1, 1, 1])
+    col_bulk1, col_bulk2, col_bulk3, col_bulk4, col_bulk5 = st.columns([1, 1, 1, 1, 1])
     unprocessed_docs = [d for d in docs if not d.data]
     with col_bulk1:
         if unprocessed_docs:
@@ -197,13 +197,20 @@ if docs:
                     st.rerun()
     
     with col_bulk2:
-        if st.button("🗑️ Smazat vše", use_container_width=True, help="Vymaže všechny dokumenty z pracovní plochy."):
+        docs_with_data = [d for d in docs if d.data]
+        if st.button(f"🧹 Smazat AI data ({len(docs_with_data)})", use_container_width=True, help="Smaže vytěžená AI data ze všech dokumentů v seznamu, ale dokumenty samotné ponechá."):
+            for d in docs_with_data:
+                d.clear_data()
+            st.rerun()
+
+    with col_bulk3:
+        if st.button(f"🗑️ Vymazat vše ({len(docs)})", use_container_width=True, help="Úplně vyčistí seznam dokumentů (pracovní plochu)."):
             st.session_state.doc_manager.clear()
             st.session_state.selected_doc_id = None
             st.session_state.uploader_key += 1
             st.rerun()
 
-    with col_bulk3:
+    with col_bulk4:
         if st.button("🔍 Kontrola anomálií", use_container_width=True):
             approved_docs = [d for d in docs if d.approved]
             if approved_docs:
@@ -216,7 +223,7 @@ if docs:
             else:
                 st.info("Nejprve schvalte nějaké faktury.")
 
-    with col_bulk4:
+    with col_bulk5:
         approved_docs = [d for d in docs if d.approved]
         if approved_docs:
             xml_data = st.session_state.doc_manager.to_xml(mode_key, include_attachments=include_images)
@@ -249,10 +256,17 @@ if docs:
         with col_img:
             image = Image.open(io.BytesIO(current_doc.content))
             st.image(image, caption=current_doc.name, use_container_width=True)
-            if st.button("🗑️ Odstranit dokument", type="secondary"):
+            
+            c_del1, c_del2 = st.columns(2)
+            if c_del1.button("🗑️ Odstranit dokument", type="secondary", use_container_width=True, help="Úplně odstraní dokument z tohoto seznamu."):
                 st.session_state.doc_manager.remove_document(current_doc.id)
                 st.session_state.selected_doc_id = None
                 st.rerun()
+            
+            if current_doc.data:
+                if c_del2.button("🧹 Smazat AI data", type="secondary", use_container_width=True, help="Smaže pouze vytěžená AI data, ale dokument v seznamu ponechá."):
+                    current_doc.clear_data()
+                    st.rerun()
         
         with col_form:
             if not current_doc.data:
