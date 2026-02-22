@@ -24,6 +24,28 @@ st.markdown("""
     .stForm { padding: 0.5rem !important; margin-bottom: 0.5rem !important; }
     hr { margin: 0.5rem 0 !important; }
     div[data-testid="stExpander"] { border: 1px solid #ddd; border-radius: 5px; }
+    
+    /* Schování Drag & Drop textu a zmenšení uploaderu na velikost tlačítka */
+    [data-testid="stFileUploadDropzone"] {
+        padding: 0px !important;
+        border: none !important;
+        background-color: transparent !important;
+    }
+    [data-testid="stFileUploadDropzone"] > div > span {
+        display: none;
+    }
+    [data-testid="stFileUploadDropzone"] section {
+        padding: 0px !important;
+    }
+    /* Stylizace tlačítka uvnitř uploaderu aby vypadalo jako standardní Streamlit button */
+    [data-testid="stFileUploadDropzone"] button {
+        width: 100%;
+        margin: 0px !important;
+    }
+    /* Skrytí seznamu nahraných souborů pod uploaderem (máme svou tabulku) */
+    [data-testid="stFileUploader"] section + div {
+        display: none;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -71,7 +93,7 @@ st.title(f"📄 Převodník: Faktury {mode_key}")
 # 1. Upload & Scan Section
 col_up1, col_up2, col_up3 = st.columns([2, 1, 1])
 with col_up1:
-    uploaded_files = st.file_uploader("Nahrajte JPG, PNG, PDF", type=["jpg", "jpeg", "png", "pdf"], accept_multiple_files=True, label_visibility="collapsed")
+    uploaded_files = st.file_uploader("📂 Vybrat soubory (JPG, PNG, PDF)...", type=["jpg", "jpeg", "png", "pdf"], accept_multiple_files=True, label_visibility="collapsed")
     if uploaded_files:
         existing_names = [d.name for d in st.session_state.doc_manager.documents]
         for f in uploaded_files:
