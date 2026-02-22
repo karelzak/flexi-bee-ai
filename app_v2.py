@@ -285,6 +285,14 @@ if docs:
         disabled=[c for c in cols_to_show if c != "Vybrat"]
     )
     
+    # Summary anomálií
+    anomalies_count = len([d for d in docs if d.anomaly])
+    approved_count = len([d for d in docs if d.approved])
+    if anomalies_count > 0:
+        st.warning(f"⚠️ Nalezeno {anomalies_count} anomálií v datech! Zkontrolujte sloupec 'Anomálie' v tabulce.")
+    elif approved_count > 0 and not st.session_state.checking_anomalies:
+        st.success("✅ Žádné anomálie nenalezeny.")
+    
     # Handle selection change
     if "doc_selector" in st.session_state:
         edits = st.session_state.doc_selector.get("edited_rows", {})
@@ -338,7 +346,7 @@ if docs:
             utils.save_company_to_history(company_name)
             safe_prefix = "".join([c for c in company_name if c.isalnum() or c in (' ', '-', '_')]).strip().replace(' ', '_') or "flexibee"
             st.download_button(
-                label=f"⬇️ Exportovat {len(approved_docs)} faktur do XML",
+                label=f"⬇️ XML export ({len(approved_docs)})",
                 data=xml_data,
                 file_name=f"{safe_prefix}_{mode_key}_{datetime.now().strftime('%Y%m%d_%H%M')}.xml",
                 mime="application/xml",
