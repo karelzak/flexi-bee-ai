@@ -54,6 +54,10 @@ class FlexiDoc:
     def get_image_mimetype(self) -> str:
         return self.mime_type
 
+    def get_image_b64(self) -> str:
+        """Returns base64 encoded content for XML or UI display."""
+        return base64.b64encode(self.content).decode('utf-8')
+
     def run_ocr(self, ocr_engine, mode: str):
         """Runs Gemini OCR on this document."""
         return ocr_engine.extract_invoice_data(self, mode)
