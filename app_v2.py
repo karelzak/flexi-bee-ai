@@ -158,6 +158,10 @@ if docs:
             "Soubor": d.name,
             "Číslo": d.data.get("invoice_number", ""),
             "Partner": d.data.get("partner_name", ""),
+            "Základ 0%": d.data.get("base_0", 0.0),
+            "Zaokrouhl.": d.data.get("rounding", 0.0),
+            "Základ celkem": d.data.get("total_base", 0.0),
+            "DPH celkem": d.data.get("total_vat", 0.0),
             "Částka": d.data.get("total_amount", 0.0),
             "Měna": d.data.get("currency", ""),
             "Anomálie": d.anomaly or ""
@@ -172,7 +176,7 @@ if docs:
     
     df['Vybrat'] = df['ID'] == st.session_state.selected_doc_id
     
-    cols_to_show = ["Vybrat", "Stav", "Soubor", "Číslo", "Partner", "Částka", "Měna", "Anomálie"]
+    cols_to_show = ["Vybrat", "Stav", "Soubor", "Číslo", "Partner", "Základ 0%", "Zaokrouhl.", "Základ celkem", "DPH celkem", "Částka", "Měna", "Anomálie"]
     
     edited_df = st.data_editor(
         df[cols_to_show],
@@ -182,6 +186,11 @@ if docs:
         column_config={
             "Vybrat": st.column_config.CheckboxColumn(" ", width="small"),
             "Anomálie": st.column_config.TextColumn("⚠️ Anomálie", width="medium"),
+            "Základ 0%": st.column_config.NumberColumn(format="%.2f"),
+            "Zaokrouhl.": st.column_config.NumberColumn(format="%.2f"),
+            "Základ celkem": st.column_config.NumberColumn(format="%.2f"),
+            "DPH celkem": st.column_config.NumberColumn(format="%.2f"),
+            "Částka": st.column_config.NumberColumn("Celkem", format="%.2f"),
         },
         disabled=[c for c in cols_to_show if c != "Vybrat"]
     )
@@ -313,6 +322,10 @@ if docs:
                     st.divider()
                     
                     c1, c2 = st.columns(2)
+                    b0 = c1.number_input("Základ 0% (osvobozeno)", value=float(data.get("base_0", 0.0)))
+                    round_val = c2.number_input("Zaokrouhlení", value=float(data.get("rounding", 0.0)))
+
+                    c1, c2 = st.columns(2)
                     b12 = c1.number_input("Základ 12%", value=float(data.get("base_12", 0.0)))
                     v12 = c2.number_input("DPH 12%", value=float(data.get("vat_12", 0.0)))
                     
@@ -320,6 +333,10 @@ if docs:
                     b21 = c1.number_input("Základ 21%", value=float(data.get("base_21", 0.0)))
                     v21 = c2.number_input("DPH 21%", value=float(data.get("vat_21", 0.0)))
                     
+                    c1, c2 = st.columns(2)
+                    t_base = c1.number_input("Základ celkem", value=float(data.get("total_base", 0.0)))
+                    t_vat = c2.number_input("DPH celkem", value=float(data.get("total_vat", 0.0)))
+
                     t_amt = st.number_input("Celkem s DPH", value=float(data.get("total_amount", 0.0)))
 
                     col_f1, col_f2 = st.columns(2)
@@ -329,7 +346,10 @@ if docs:
                             "invoice_number": inv_num, "variable_symbol": var_sym, "description": desc,
                             "issue_date": iss_date, "vat_date": vat_date, "due_date": due_date,
                             "partner_name": p_name, "partner_ico": p_ico, "partner_vat_id": p_dic,
-                            "currency": curr, "base_12": b12, "vat_12": v12, "base_21": b21, "vat_21": v21,
+                            "currency": curr, 
+                            "base_0": b0, "rounding": round_val,
+                            "base_12": b12, "vat_12": v12, "base_21": b21, "vat_21": v21,
+                            "total_base": t_base, "total_vat": t_vat,
                             "total_amount": t_amt
                         })
                         current_doc.set_data(new_data)
@@ -349,7 +369,10 @@ if docs:
                             "invoice_number": inv_num, "variable_symbol": var_sym, "description": desc,
                             "issue_date": iss_date, "vat_date": vat_date, "due_date": due_date,
                             "partner_name": p_name, "partner_ico": p_ico, "partner_vat_id": p_dic,
-                            "currency": curr, "base_12": b12, "vat_12": v12, "base_21": b21, "vat_21": v21,
+                            "currency": curr, 
+                            "base_0": b0, "rounding": round_val,
+                            "base_12": b12, "vat_12": v12, "base_21": b21, "vat_21": v21,
+                            "total_base": t_base, "total_vat": t_vat,
                             "total_amount": t_amt
                         })
                         current_doc.set_data(new_data)
