@@ -101,7 +101,8 @@ except ValueError as e:
     st.error(str(e))
     st.stop()
 
-st.title(f"📄 Převodník: Faktury {mode_key}")
+title_suffix = f" - {company_name}" if company_name and company_name != "moje_firma" else ""
+st.title(f"📄 Převodník: Faktury {mode_key}{title_suffix}")
 
 # 1. Upload & Scan Section
 col_up1, col_up2 = st.columns([3, 1])
