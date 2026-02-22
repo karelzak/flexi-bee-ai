@@ -46,6 +46,17 @@ st.markdown("""
     [data-testid="stFileUploader"] section + div {
         display: none;
     }
+    
+    /* Červené tlačítko pro smazání všeho */
+    .stButton > button.dangerous-button {
+        color: white;
+        background-color: #ff4b4b;
+        border-color: #ff4b4b;
+    }
+    .stButton > button.dangerous-button:hover {
+        background-color: #ff2b2b;
+        border-color: #ff2b2b;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -183,7 +194,7 @@ if docs:
             st.rerun()
 
     # Bulk actions under the table
-    col_bulk1, col_bulk2, col_bulk3, col_bulk4, col_bulk5 = st.columns([1, 1, 1, 1, 1])
+    col_bulk1, col_bulk2, col_bulk3, col_bulk4 = st.columns([1, 1, 1, 1])
     unprocessed_docs = [d for d in docs if not d.data]
     with col_bulk1:
         if unprocessed_docs:
@@ -204,13 +215,6 @@ if docs:
             st.rerun()
 
     with col_bulk3:
-        if st.button(f"🗑️ Vymazat vše ({len(docs)})", use_container_width=True, help="Úplně vyčistí seznam dokumentů (pracovní plochu)."):
-            st.session_state.doc_manager.clear()
-            st.session_state.selected_doc_id = None
-            st.session_state.uploader_key += 1
-            st.rerun()
-
-    with col_bulk4:
         if st.button("🔍 Kontrola anomálií", use_container_width=True):
             approved_docs = [d for d in docs if d.approved]
             if approved_docs:
@@ -223,7 +227,7 @@ if docs:
             else:
                 st.info("Nejprve schvalte nějaké faktury.")
 
-    with col_bulk5:
+    with col_bulk4:
         approved_docs = [d for d in docs if d.approved]
         if approved_docs:
             xml_data = st.session_state.doc_manager.to_xml(mode_key, include_attachments=include_images)
@@ -349,3 +353,14 @@ if docs:
                         st.rerun()
 else:
     st.info("Nahrajte nebo naskenujte faktury pro zahájení zpracování.")
+
+# Globální akce na konci aplikace
+if docs:
+    st.divider()
+    col_footer1, col_footer2, col_footer3 = st.columns([2, 1, 2])
+    with col_footer2:
+        if st.button(f"🗑️ Vymazat vše ({len(docs)})", use_container_width=True, type="primary", help="Úplně vyčistí seznam dokumentů (pracovní plochu)."):
+            st.session_state.doc_manager.clear()
+            st.session_state.selected_doc_id = None
+            st.session_state.uploader_key += 1
+            st.rerun()
