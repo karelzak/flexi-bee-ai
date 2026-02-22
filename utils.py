@@ -52,8 +52,8 @@ def find_naps2() -> Optional[str]:
             return p
     return None
 
-def run_naps2_scan(company_name: str) -> List[Dict[str, Any]]:
-    """Spustí NAPS2 scan."""
+def run_naps2_scan(company_name: str, profile: str = "flexibee") -> List[Dict[str, Any]]:
+    """Spustí NAPS2 scan s daným profilem."""
     if platform.system() != "Windows":
         return []
     
@@ -67,7 +67,7 @@ def run_naps2_scan(company_name: str) -> List[Dict[str, Any]]:
     scan_dir.mkdir(parents=True, exist_ok=True)
     
     output_pattern = str(scan_dir / "img-$(n).jpg")
-    cmd = [naps2_path, "-p", "flexibee", "-o", output_pattern, "--split", "--progress"]
+    cmd = [naps2_path, "-p", profile, "-o", output_pattern, "--split", "--progress"]
     
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)

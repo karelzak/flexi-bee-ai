@@ -129,9 +129,20 @@ with col_up1:
                     st.session_state.doc_manager.add_document(doc)
 
 with col_up2:
-    if st.button("🖨️ Skenovat z podavače", use_container_width=True):
+    c_scan1, c_scan2 = st.columns(2)
+    if c_scan1.button("🖨️ Podavač", use_container_width=True, help="Skenovat z podavače (profil 'flexibee')"):
         utils.save_company_to_history(company_name)
-        scanned = utils.run_naps2_scan(company_name)
+        scanned = utils.run_naps2_scan(company_name, profile="flexibee")
+        for s in scanned:
+            doc = FlexiDoc(s['name'], s['content'], s['type'], mode_key)
+            st.session_state.doc_manager.add_document(doc)
+        if scanned:
+            st.success(f"Naskenováno {len(scanned)} stran.")
+            st.rerun()
+            
+    if c_scan2.button("🖨️ Sklo", use_container_width=True, help="Skenovat ze skla (profil 'flexibee_glass')"):
+        utils.save_company_to_history(company_name)
+        scanned = utils.run_naps2_scan(company_name, profile="flexibee_glass")
         for s in scanned:
             doc = FlexiDoc(s['name'], s['content'], s['type'], mode_key)
             st.session_state.doc_manager.add_document(doc)
